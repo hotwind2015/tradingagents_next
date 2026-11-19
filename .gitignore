@@ -221,3 +221,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+tests/
+plugins/
+runs/
+config/recipes/
