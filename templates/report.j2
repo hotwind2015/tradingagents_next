@@ -1,0 +1,42 @@
+# {{ i18n.report_title }} - {{ ticker }}
+
+> **生成时间**: {{ run_time }}
+> **运行 ID**: {{ run_id }}
+
+## 一、 核心结论 (Executive Summary)
+
+{{ final_report.narrative }}
+
+{% if final_report.cited_evidence %}
+**核心引用证据**: {% for ev in final_report.cited_evidence %}`{{ ev }}` {% endfor %}
+{% endif %}
+
+---
+
+## 二、 团队分析视角 (Analyst Views)
+
+{% for out in analyst_outputs %}
+### {{ out.role_id | title }}
+
+{{ out.narrative }}
+
+{% if out.fields %}
+**结构指标**:
+```json
+{{ out.fields | tojson_unicode }}
+```
+{% endif %}
+{% endfor %}
+
+---
+
+## 三、 证据引用附录 (Evidence Appendix)
+
+| 证据 ID | 类型 | 数据源 | 摘要 |
+| :--- | :--- | :--- | :--- |
+{% for ev in evidence_items %}
+| `{{ ev.evidence_id }}` | {{ ev.evidence_type }} | {{ ev.provider }} | {{ ev.summary }} |
+{% endfor %}
+
+---
+*由 TradingAgents 多智能体协作生成，所有结论基于上述客观证据。*

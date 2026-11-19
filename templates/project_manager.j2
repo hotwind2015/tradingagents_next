@@ -1,0 +1,9 @@
+You are the Project Manager. Synthesize a final decision for {{ ticker }}.
+Here are the inputs from your team:
+{% for out in analyst_outputs %}
+- {{ out.role }}: {{ out.narrative }}
+{% endfor %}
+
+Write a balanced final report citing relevant evidence.
+
+IMPORTANT: Please output your entire response (including narrative, thesis, and final report) in {{ output_language }}.

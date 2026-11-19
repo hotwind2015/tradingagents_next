@@ -1,0 +1,38 @@
+[project]
+name = "tradingagents"
+version = "0.1.0"
+description = "Config-driven multi-agent investment analysis system (rebuild)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings>=2.2",
+    "omegaconf>=2.3",
+    "jinja2>=3.1",
+    "pyyaml>=6.0",
+    "openai>=1.30.0",
+    "yfinance>=0.2.40",
+]
+
+[project.entry-points."tradingagents.llms"]
+openai = "tradingagents.llm.openai_client:OpenAICompatibleClient"
+
+[project.entry-points."tradingagents.providers"]
+yfinance = "tradingagents.providers.yfinance.provider:YFinanceProvider"
+
+[project.entry-points."tradingagents.roles"]
+market_analyst = "tradingagents.roles.market_analyst:MarketAnalyst"
+project_manager = "tradingagents.roles.project_manager:ProjectManager"
+fundamentals_analyst = "tradingagents.roles.fundamentals_analyst:FundamentalsAnalyst"
+bull_researcher = "tradingagents.roles.researchers:BullResearcher"
+bear_researcher = "tradingagents.roles.researchers:BearResearcher"
+news_analyst = "tradingagents.roles.news_analyst:NewsAnalyst"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["tradingagents*"]
+
+[project.scripts]
+tradingagents = "tradingagents.cli:main"
