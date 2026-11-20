@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class ProvenanceField(BaseModel):
     value: Any
-    source: Literal["cli", "user_config", "recipe", "default", "env"]
+    source: Literal["cli", "user_config", "default", "env"]
 
 
 class EffectiveConfig(BaseModel):

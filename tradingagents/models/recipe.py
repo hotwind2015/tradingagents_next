@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class RoleSpec(BaseModel):
     # id 字段可以删了，因为字典的 key 就是 id
-    plugin: str
+    role_id: str
     display_name_key: str
     consumes: list[str] = Field(default_factory=list)
     produces: list[str] = Field(default_factory=list)

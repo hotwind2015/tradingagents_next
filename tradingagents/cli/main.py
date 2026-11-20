@@ -4,7 +4,6 @@ import argparse
 import sys
 from pathlib import Path
 
-from tradingagents.recipe.loader import load_recipe
 from tradingagents.run.orchestrator import Orchestrator
 
 
@@ -25,7 +24,6 @@ def main():
     
     run_parser = subparsers.add_parser("run", help="Run an analysis")
     run_parser.add_argument("--ticker", required=True, help="Ticker symbol (e.g., AAPL)")
-    run_parser.add_argument("--recipe", required=True, type=Path, help="Path to recipe YAML")
     run_parser.add_argument("--config", type=Path, help="Path to user config YAML")
     
     # 新增 CLI 覆盖参数
@@ -49,8 +47,6 @@ def main():
 
     if args.command == "run":
         try:
-            recipe = load_recipe(args.recipe)
-            
             # 收集 CLI 覆盖项
             cli_overrides = parse_set_args(args.set)
             if args.lang:
@@ -59,7 +55,6 @@ def main():
             cli_plugin_dirs = args.plugin_dir
             
             orchestrator = Orchestrator(
-                recipe=recipe,
                 ticker=args.ticker,
                 cli_overrides=cli_overrides,
                 config_path=args.config,

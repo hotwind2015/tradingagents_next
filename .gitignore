@@ -226,3 +226,6 @@ tests/
 plugins/
 runs/
 config/recipes/
+
+.zed/
+.vscode/

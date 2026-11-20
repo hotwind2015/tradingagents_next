@@ -70,7 +70,6 @@ class DynamicGraphExecutor:
 class Orchestrator:
     def __init__(
         self,
-        recipe: Recipe,
         ticker: str,
         cli_overrides: dict,
         config_path: Path | None = None,
@@ -78,7 +77,6 @@ class Orchestrator:
         resume_run_id: str | None = None,
         cli_plugin_dirs: list[str] | None = None,
     ):
-        self.recipe = recipe
         self.ticker = ticker
         self.cli_overrides = cli_overrides
         self.config_path = config_path
@@ -111,21 +109,20 @@ class Orchestrator:
                 d[parts[-1]] = value
             return result
 
-        recipe_dict = self.recipe.model_dump()
         default_dict = _read_yaml(get_env_settings().default_config)
         user_dict = _read_yaml(self.config_path)
         cli_dict = unflatten(self.cli_overrides)
 
         # 合并优先级：default < recipe < user < cli
         merged_dict = OmegaConf.to_container(
-            OmegaConf.merge(default_dict, recipe_dict, user_dict, cli_dict),
+            OmegaConf.merge(default_dict, user_dict, cli_dict),
             resolve=True
         )
         self.recipe = Recipe.model_validate(merged_dict)
 
         # 生成带来源追踪的 EffectiveConfig
         merged_fields = {}
-        for source_name, d in [("default", default_dict), ("recipe", recipe_dict), ("user_config", user_dict), ("cli", cli_dict)]:
+        for source_name, d in [("default", default_dict), ("user_config", user_dict), ("cli", cli_dict)]:
             flat_d = flatten(d)
             for k, v in flat_d.items():
                 merged_fields[k] = ProvenanceField(value=v, source=source_name)
@@ -159,8 +156,6 @@ class Orchestrator:
         # === 插件目录解析与统一加载 ===
         if self.cli_plugin_dirs:
             final_plugin_dirs = self.cli_plugin_dirs
-        elif self.recipe.plugin_dirs:
-            final_plugin_dirs = self.recipe.plugin_dirs
         else:
             final_plugin_dirs = []  # <--- 默认空列表，白名单模式
 
@@ -244,22 +239,22 @@ class Orchestrator:
         
         all_roles = actual_analysts + [actual_pm]
         for role in all_roles:
-            nodes.append(NodeIR(id=role.plugin, kind="project_manager" if role.plugin == self.recipe.team.project_manager else "analyst"))
+            nodes.append(NodeIR(id=role.role_id, kind="project_manager" if role.role_id == self.recipe.team.project_manager else "analyst"))
             for out in role.produces:
-                produced_map.setdefault(out, []).append(role.plugin)
+                produced_map.setdefault(out, []).append(role.role_id)
 
         for consumer in all_roles:
             for req in consumer.consumes:
                 if req in produced_map:
                     for producer_id in produced_map[req]:
-                        edges.append(EdgeIR(src=producer_id, dst=consumer.plugin))
+                        edges.append(EdgeIR(src=producer_id, dst=consumer.role_id))
 
         unique_edges = []
         for e in edges:
             if e.src != e.dst and e not in unique_edges:
                 unique_edges.append(e)
 
-        ir = GraphIR(nodes=nodes, edges=unique_edges, entry="start", terminals=[actual_pm.plugin])
+        ir = GraphIR(nodes=nodes, edges=unique_edges, entry="start", terminals=[actual_pm.role_id])
 
         # 5. 执行层：绑定执行函数
         state = {"role_outputs": [], "final_report": None}
@@ -268,13 +263,13 @@ class Orchestrator:
         def make_analyst_fn(role_spec):
             def inner(s):
                 # 注意这里的 StateManager 缓存 key，用 plugin 名
-                cached_output = state_mgr.load_output(role_spec.plugin)
+                cached_output = state_mgr.load_output(role_spec.role_id)
                 if cached_output:
-                    logger.info(f"Skipping {role_spec.plugin}: Loaded from cache.")
+                    logger.info(f"Skipping {role_spec.role_id}: Loaded from cache.")
                     s["role_outputs"].append(cached_output)
                     return s
                 
-                role_cls = plugin_manager.get("role", role_spec.plugin)
+                role_cls = plugin_manager.get("role", role_spec.role_id)
                 role = role_cls()
                 logger.info(i18n.t("run_analyst", role_id=role.role_id))
                 
@@ -295,7 +290,7 @@ class Orchestrator:
                 raw_res = llm.invoke(prompt_text, model_cfg)
                 out = role.parse_output(raw_res)
                 
-                state_mgr.save_output(role_spec.plugin, out)
+                state_mgr.save_output(role_spec.role_id, out)
                 s["role_outputs"].append(out)
                 return s
             return inner
@@ -303,13 +298,13 @@ class Orchestrator:
         def run_pm_fn(s):
             pm_spec = self.recipe.team.project_manager
             
-            cached_output = state_mgr.load_output(pm_spec.plugin)
+            cached_output = state_mgr.load_output(pm_spec)
             if cached_output:
-                logger.info(f"Skipping {pm_spec.plugin}: Loaded from cache.")
+                logger.info(f"Skipping {pm_spec}: Loaded from cache.")
                 s["final_report"] = cached_output
                 return s
                 
-            role_cls = plugin_manager.get("role",pm_spec.plugin)
+            role_cls = plugin_manager.get("role",pm_spec)
             role = role_cls()
             logger.info(i18n.t("run_pm"))
             
@@ -329,13 +324,13 @@ class Orchestrator:
             raw_res = llm.invoke(prompt_text, self.recipe.models.deep)
             out = role.parse_output(raw_res)
             
-            state_mgr.save_output(pm_spec.plugin, out)
+            state_mgr.save_output(pm_spec, out)
             s["final_report"] = out
             return s
 
         for role in actual_analysts:
-            executor.add_node(role.plugin, make_analyst_fn(role))
-        executor.add_node(actual_pm.plugin, run_pm_fn)
+            executor.add_node(role.role_id, make_analyst_fn(role))
+        executor.add_node(actual_pm.role_id, run_pm_fn)
 
         # 6. 执行图
         final_state = executor.execute()
