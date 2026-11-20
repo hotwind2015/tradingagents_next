@@ -1,3 +1,8 @@
+id: default
+version: "0.1"
+target_profile: equity
+evidence_schema: v1
+prompt_persistence: full
 # 资源池：定义所有的角色细节
 roles:
   market_analyst:
