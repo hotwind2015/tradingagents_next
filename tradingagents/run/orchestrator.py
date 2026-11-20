@@ -140,7 +140,7 @@ class Orchestrator:
         i18n = get_i18n()
         
         logger = setup_logging(self.run_dir, get_env_settings().log_level)
-        logger.info(i18n.t("run_start", run_id=self.run_id, ticker=self.ticker))
+        logger.info(i18n.t("run.started", run_id=self.run_id, ticker=self.ticker))
         write_snapshot(effective_cfg, self.run_dir / "effective_config.yaml",recipe_data=self.recipe.model_dump())
 
         ctx = RunContext(run_id=self.run_id, run_dir=self.run_dir, recipe=self.recipe, lang=final_lang)
@@ -150,8 +150,11 @@ class Orchestrator:
         store = EvidenceStore(self.run_dir, self.run_id, self.recipe.id, self.recipe.version)
         state_mgr = StateManager(self.run_dir)
 
-        lang_name_map = {"zh-CN": "Simplified Chinese (简体中文)", "en-US": "English"}
-        output_language = lang_name_map.get(final_lang, "English")
+        lang_name_map = {
+            "zh-CN": i18n.t("languages.zh_cn"),
+            "en-US": i18n.t("languages.en_us"),
+        }
+        output_language = lang_name_map.get(final_lang, i18n.t("languages.en_us"))
 
         # === 插件目录解析与统一加载 ===
         if self.cli_plugin_dirs:
@@ -166,20 +169,23 @@ class Orchestrator:
         for p_dir in final_plugin_dirs:
             custom_tpl_dir = Path(p_dir) / "templates"
             if custom_tpl_dir.exists():
-                logger.info(f"Added custom template path: {custom_tpl_dir}")
+                logger.info(
+                    i18n.t("run.plugin_template_added", template_dir=custom_tpl_dir)
+                )
                 template_search_paths.append(custom_tpl_dir)
 
         # 3. 实例化渲染器
         renderer = PromptRenderer(template_search_paths)
             
-        logger.info(f"Resolved plugin dirs: {final_plugin_dirs}")
+        logger.info(
+            i18n.t("run.plugin_dirs_resolved", plugin_dirs=final_plugin_dirs)
+        )
         
         plugin_manager = PluginManager()
         if final_plugin_dirs:
-            logger.info(f"Resolved plugin dirs: {final_plugin_dirs}")
             plugin_manager.discover_all([Path(d) for d in final_plugin_dirs])
         else:
-            logger.info("No custom plugin dirs specified. Running in pure mode.")
+            logger.info(i18n.t("run.no_custom_plugins"))
             plugin_manager.discover_all([]) # 内部只加载官方内置
 
         llm_provider_id = self.recipe.models.provider
@@ -187,32 +193,39 @@ class Orchestrator:
             # 改用 plugin_manager.get
             llm_cls = plugin_manager.get("llm", llm_provider_id)
             llm = llm_cls()
-            logger.info(f"Initialized LLM provider: {llm_provider_id}")
+            logger.info(
+                i18n.t("run.llm_initialized", provider_id=llm_provider_id)
+            )
         except KeyError:
-            logger.error(f"LLM provider '{llm_provider_id}' not found. Please check your recipe or plugins.")
+            logger.error(
+                i18n.t("run.llm_provider_not_found", provider_id=llm_provider_id)
+            )
             raise
         # =====================
         # === 解析 Team 实际配置 ===
         actual_analysts = []
         for role_id in self.recipe.team.analysts:
             if role_id not in self.recipe.roles:
-                raise ValueError(f"Role ID '{role_id}' not found in roles pool.")
+                raise ValueError(i18n.t("run.analyst_role_not_found", role_id=role_id))
             actual_analysts.append(self.recipe.roles[role_id])
             
         pm_id = self.recipe.team.project_manager
         if pm_id not in self.recipe.roles:
-            raise ValueError(f"PM Role ID '{pm_id}' not found in roles pool.")
+            raise ValueError(i18n.t("run.manager_role_not_found", role_id=pm_id))
         actual_pm = self.recipe.roles[pm_id]
         
         # 校验合并后的配置
         from tradingagents.recipe.validator import validate_recipe
         val_res = validate_recipe(self.recipe)
         if not val_res.ok:
-            logger.error(f"Recipe validation failed after merge: {val_res.errors}")
-            raise ValueError("Recipe validation failed.")        
+            error_message = i18n.t(
+                "run.recipe_validation_failed", errors=val_res.errors
+            )
+            logger.error(error_message)
+            raise ValueError(error_message)
         # 3. 数据层：判断是否断点续跑，还是新拉取数据
         if not store.manifest_path.exists():
-            logger.info(i18n.t("fetch_evidence"))
+            logger.info(i18n.t("run.fetching_evidence"))
             router = DataRouter(plugin_manager, store)
             
             required_evidence = set()
@@ -224,11 +237,11 @@ class Orchestrator:
                 try:
                     router.fetch_and_store(self.ticker, ev_type, chain)
                 except DataFetchError as e:
-                    logger.error(f"Data fetch aborted: {e}")
-                    logger.error("分析中止。请检查网络后使用 --resume 重新尝试。")
+                    logger.error(i18n.t("run.data_fetch_aborted", error=e))
+                    logger.error(i18n.t("run.analysis_aborted"))
                     raise
         else:
-            logger.info("Found existing evidence_manifest, loading from disk...")
+            logger.info(i18n.t("run.evidence_manifest_loaded"))
             store.manifest = EvidenceManifest.model_validate_json(store.manifest_path.read_text(encoding="utf-8"))
 
         evidence_view = EvidenceView(store.manifest.items)
@@ -265,13 +278,17 @@ class Orchestrator:
                 # 注意这里的 StateManager 缓存 key，用 plugin 名
                 cached_output = state_mgr.load_output(role_spec.role_id)
                 if cached_output:
-                    logger.info(f"Skipping {role_spec.role_id}: Loaded from cache.")
+                    logger.info(
+                        i18n.t(
+                            "run.cached_role_output", role_id=role_spec.role_id
+                        )
+                    )
                     s["role_outputs"].append(cached_output)
                     return s
                 
                 role_cls = plugin_manager.get("role", role_spec.role_id)
                 role = role_cls()
-                logger.info(i18n.t("run_analyst", role_id=role.role_id))
+                logger.info(i18n.t("run.analyst_started", role_id=role.role_id))
                 
                 prompt_ctx = role.prepare_context(evidence_view, ctx)
                 prompt_ctx["output_language"] = output_language
@@ -280,7 +297,13 @@ class Orchestrator:
                 try:
                     renderer.validate_variables(role.template, set(prompt_ctx.keys()))
                 except Exception as e:
-                    logger.error(f"Template validation failed for {role.role_id}: {e}")
+                    logger.error(
+                        i18n.t(
+                            "run.template_validation_failed",
+                            role_id=role.role_id,
+                            error=e,
+                        )
+                    )
                     raise
                 
                 prompt_text = renderer.render(role.template, prompt_ctx)
@@ -300,13 +323,15 @@ class Orchestrator:
             
             cached_output = state_mgr.load_output(pm_spec)
             if cached_output:
-                logger.info(f"Skipping {pm_spec}: Loaded from cache.")
+                logger.info(
+                    i18n.t("run.cached_manager_output", role_id=pm_spec)
+                )
                 s["final_report"] = cached_output
                 return s
                 
             role_cls = plugin_manager.get("role",pm_spec)
             role = role_cls()
-            logger.info(i18n.t("run_pm"))
+            logger.info(i18n.t("run.manager_started"))
             
             prompt_ctx = role.prepare_context(s["role_outputs"], evidence_view, ctx)
             prompt_ctx["output_language"] = output_language
@@ -315,7 +340,13 @@ class Orchestrator:
             try:
                 renderer.validate_variables(role.template, set(prompt_ctx.keys()))
             except Exception as e:
-                logger.error(f"Template validation failed for PM: {e}")
+                logger.error(
+                    i18n.t(
+                        "run.template_validation_failed",
+                        role_id=role.role_id,
+                        error=e,
+                    )
+                )
                 raise
                 
             prompt_text = renderer.render(role.template, prompt_ctx)
@@ -343,7 +374,11 @@ class Orchestrator:
             
             if len(valid_citations) < len(report.cited_evidence):
                 fake_ids = set(report.cited_evidence) - set(valid_citations)
-                logger.warning(i18n.t("hallucinated_citations", fake_ids=str(fake_ids)))
+                logger.warning(
+                    i18n.t(
+                        "run.hallucinated_citations", fake_ids=str(fake_ids)
+                    )
+                )
                 report.cited_evidence = valid_citations
                 
             for ev_id in valid_citations:
@@ -360,6 +395,6 @@ class Orchestrator:
         )
         
         store.verify_integrity()
-        logger.info(i18n.t("run_complete", path=str(report_path)))
+        logger.info(i18n.t("run.completed", path=str(report_path)))
         
         return report_path

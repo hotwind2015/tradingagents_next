@@ -7,6 +7,7 @@ from tradingagents.evidence.store import EvidenceStore
 from tradingagents.models.evidence import EvidenceItem
 from tradingagents.providers.base import DataRequest
 from tradingagents.run.plugin_manager import PluginManager
+from tradingagents.utils import get_i18n
 
 logger = logging.getLogger("tradingagents.data")
 
@@ -20,6 +21,7 @@ class DataRouter:
         self.store = store
 
     def fetch_and_store(self, ticker: str, ev_type: str, provider_chain: list[str]):
+        i18n = get_i18n()
         for provider_id in provider_chain:
             try:
                 provider_obj = self.plugin_manager.get("provider", provider_id)
@@ -40,11 +42,25 @@ class DataRouter:
                             fetched_at=datetime.now(timezone.utc)
                         )
                         self.store.append(item, raw_ev.raw_payload)
-                        logger.info(f"Fetched {item.evidence_id} via {provider_id}")
+                        logger.info(
+                            i18n.t(
+                                "run.fetched_evidence",
+                                ev_id=item.evidence_id,
+                                summary=item.summary,
+                            )
+                        )
                     return  # 成功获取就退出尝试链
             except Exception as e:
-                logger.warning(f"Provider {provider_id} failed for {ev_type}: {e}. Trying next...")
+                logger.warning(
+                    i18n.t(
+                        "run.provider_failed",
+                        provider_id=provider_id,
+                        evidence_type=ev_type,
+                        error=e,
+                    )
+                )
         
         # 如果循环结束还没 return，说明全挂了。直接抛异常！
-        logger.error(f"All providers in chain failed for {ev_type}.")
-        raise DataFetchError(f"无法获取必需的数据类型: {ev_type}，网络可能受限或 API 限流。")
+        error_message = i18n.t("errors.data_fetch_failed", evidence_type=ev_type)
+        logger.error(error_message)
+        raise DataFetchError(error_message)

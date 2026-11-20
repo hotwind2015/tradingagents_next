@@ -2,6 +2,7 @@ from __future__ import annotations
 import yfinance as yf
 from datetime import datetime, timezone
 from tradingagents.providers.base import DataProvider, DataRequest, RawEvidence
+from tradingagents.utils import get_i18n
 
 class YFinanceProvider(DataProvider):
     provider_id = "yfinance"
@@ -9,6 +10,7 @@ class YFinanceProvider(DataProvider):
 
     def fetch(self, req: DataRequest) -> list[RawEvidence]:
         results = []
+        i18n = get_i18n()
         ticker = yf.Ticker(req.ticker)
 
         if req.evidence_type == "market_data":
@@ -22,7 +24,12 @@ class YFinanceProvider(DataProvider):
                     evidence_type="market_data",
                     provider=self.provider_id,
                     method="yf_history",
-                    summary=f"{req.ticker} 最新收盘: {curr_close:.2f}, 两日涨跌幅: {pct_change:.2f}%",
+                    summary=i18n.t(
+                        "evidence.market_summary",
+                        ticker=req.ticker,
+                        close=curr_close,
+                        pct_change=pct_change,
+                    ),
                     raw_payload={"close": curr_close, "pct_change": pct_change}
                 ))
                 
@@ -36,7 +43,13 @@ class YFinanceProvider(DataProvider):
                     evidence_type="fundamentals_data",
                     provider=self.provider_id,
                     method="yf_info",
-                    summary=f"{req.ticker} 市盈率: {pe}, 市值: {mcap}, 利润率: {profit_margin}",
+                    summary=i18n.t(
+                        "evidence.fundamentals_summary",
+                        ticker=req.ticker,
+                        pe=pe,
+                        market_cap=mcap,
+                        profit_margin=profit_margin,
+                    ),
                     raw_payload={"pe": pe, "market_cap": mcap, "profit_margin": profit_margin}
                 ))
                 
@@ -48,14 +61,24 @@ class YFinanceProvider(DataProvider):
                 for item in news_list[:5]:
                     title = item.get("title", "")
                     publisher = item.get("publisher", "")
-                    summaries.append(f"[{publisher}] {title}")
+                    summaries.append(
+                        i18n.t(
+                            "evidence.news_item",
+                            publisher=publisher,
+                            title=title,
+                        )
+                    )
                 
                 combined_summary = " | ".join(summaries)
                 results.append(RawEvidence(
                     evidence_type="news_data",
                     provider=self.provider_id,
                     method="yf_news",
-                    summary=f"近期关于 {req.ticker} 的新闻标题: {combined_summary}",
+                    summary=i18n.t(
+                        "evidence.news_summary",
+                        ticker=req.ticker,
+                        headlines=combined_summary,
+                    ),
                     raw_payload={"news_count": len(news_list), "raw_news": news_list[:5]}
                 ))
         return results

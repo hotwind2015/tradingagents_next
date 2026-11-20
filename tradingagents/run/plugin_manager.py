@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 from importlib.metadata import entry_points
 
+from tradingagents.utils import get_i18n
+
 logger = logging.getLogger("tradingagents.plugin_manager")
 
 class PluginManager:
@@ -24,6 +26,7 @@ class PluginManager:
         }
 
     def register(self, plugin_type: str, plugin_id: str, obj: Any, source: str):
+        i18n = get_i18n()
         if plugin_type not in self._registry:
             self._registry[plugin_type] = {}
             self._sources[plugin_type] = {}
@@ -38,23 +41,48 @@ class PluginManager:
                 
                 if old_dir == new_dir:
                     logger.warning(
-                        f"‼️ [SAME-DIRECTORY CONFLICT] {plugin_type} '{plugin_id}' duplicated! "
-                        f"[{source}] OVERRIDES [{old_source}]."
+                        i18n.t(
+                            "plugins.conflict_same_directory",
+                            plugin_type=plugin_type,
+                            plugin_id=plugin_id,
+                            source=source,
+                            old_source=old_source,
+                        )
                     )
                 else:
                     logger.warning(
-                        f"⚠️ [DIRECTORY OVERRIDE] {plugin_type} '{plugin_id}' from [{source}] overrides [{old_source}]."
+                        i18n.t(
+                            "plugins.conflict_custom_override",
+                            plugin_type=plugin_type,
+                            plugin_id=plugin_id,
+                            source=source,
+                            old_source=old_source,
+                        )
                     )
             else:
                 logger.warning(
-                    f"⚠️ [OFFICIAL OVERRIDE] User plugin {plugin_type} '{plugin_id}' from [{source}] overrides official [{old_source}]."
+                    i18n.t(
+                        "plugins.conflict_official_override",
+                        plugin_type=plugin_type,
+                        plugin_id=plugin_id,
+                        source=source,
+                        old_source=old_source,
+                    )
                 )
 
         self._registry[plugin_type][plugin_id] = obj
         self._sources[plugin_type][plugin_id] = source
-        logger.info(f"Registered {plugin_type} '{plugin_id}' from {source}")
+        logger.info(
+            i18n.t(
+                "plugins.registered",
+                plugin_type=plugin_type,
+                plugin_id=plugin_id,
+                source=source,
+            )
+        )
 
     def discover_all(self, plugin_dirs: list[Path]):
+        i18n = get_i18n()
         # 1. 加载官方内置插件 (Entry Points)
         for group, p_type in [
             ("tradingagents.providers", "provider"),
@@ -66,24 +94,40 @@ class PluginManager:
                     obj = ep.load()
                     id_attr = self._id_attr_map.get(p_type)
                     if not id_attr or not hasattr(obj, id_attr):
-                        logger.warning(f"Official {p_type} {ep.name} missing attribute '{id_attr}', skipped.")
+                        logger.warning(
+                            i18n.t(
+                                "plugins.official_missing_id",
+                                plugin_type=p_type,
+                                entry_point=ep.name,
+                                id_attr=id_attr,
+                            )
+                        )
                         continue
                     pid = getattr(obj, id_attr)
                     self.register(p_type, pid, obj, source=f"official:{ep.name}")
                 except Exception as exc:
-                    logger.warning(f"Failed to load entry_point {ep.name}: {exc}")
+                    logger.warning(
+                        i18n.t(
+                            "plugins.entry_point_load_failed",
+                            entry_point=ep.name,
+                            error=exc,
+                        )
+                    )
 
         # 2. 扫描用户目录 (按顺序扫描，强制按文件名排序)
         for d in plugin_dirs:
             if not d.exists() or not d.is_dir():
                 continue
-            logger.info(f"Scanning custom plugin directory: {d}")
+            logger.info(
+                i18n.t("plugins.scanning_directory", directory=d)
+            )
             for py_file in sorted(d.rglob("*.py")):  # <--- sorted 保证确定性
                 if py_file.name.startswith("__"):
                     continue
                 self._load_file_and_register(py_file, d)
 
     def _load_file_and_register(self, file_path: Path, root_dir: Path):
+        i18n = get_i18n()
         try:
             module_name = f"custom_plugin_{file_path.stem}_{id(file_path)}"
             spec = importlib.util.spec_from_file_location(module_name, str(file_path))
@@ -106,13 +150,34 @@ class PluginManager:
                         p_id = getattr(obj, id_attr)
                         self.register(p_type, p_id, obj, source=source_tag)
                     else:
-                        logger.warning(f"Class {obj.__name__} in {file_path.name} has type '{p_type}' but missing ID attribute '{id_attr}'.")
+                        logger.warning(
+                            i18n.t(
+                                "plugins.custom_missing_id",
+                                class_name=obj.__name__,
+                                file_name=file_path.name,
+                                plugin_type=p_type,
+                                id_attr=id_attr,
+                            )
+                        )
         except Exception as e:
-            logger.warning(f"Failed to load plugin from {file_path}: {e}")
+            logger.warning(
+                i18n.t(
+                    "plugins.custom_load_failed",
+                    file_path=file_path,
+                    error=e,
+                )
+            )
 
     def get(self, plugin_type: str, plugin_id: str) -> Any:
         try:
             return self._registry[plugin_type][plugin_id]
         except KeyError:
             available = list(self._registry.get(plugin_type, {}).keys())
-            raise KeyError(f"Plugin '{plugin_id}' of type '{plugin_type}' not found. Available: {available}")
+            raise KeyError(
+                get_i18n().t(
+                    "errors.plugin_not_found",
+                    plugin_type=plugin_type,
+                    plugin_id=plugin_id,
+                    available=available,
+                )
+            )

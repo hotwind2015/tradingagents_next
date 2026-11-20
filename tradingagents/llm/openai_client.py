@@ -19,7 +19,7 @@ class OpenAICompatibleClient(LLMClient):
     def __init__(self):
         settings = get_env_settings()
         if not settings.llm_api_key:
-            logger.warning("No LLM API key found. Set TRADINGAGENTS_LLM_API_KEY in .env")
+            logger.warning(get_i18n().t("errors.llm_api_key_missing"))
             
         self.client = OpenAI(
             api_key=settings.llm_api_key.get_secret_value() if settings.llm_api_key else "sk-mock",
@@ -33,7 +33,7 @@ class OpenAICompatibleClient(LLMClient):
 
         i18n = get_i18n()
         
-        logger.info(i18n.t("calling_llm", model_name=model_name))
+        logger.info(i18n.t("run.calling_llm", model_name=model_name))
         
         response = self.client.chat.completions.create(
             model=model_name,
