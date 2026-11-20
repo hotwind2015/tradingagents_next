@@ -20,72 +20,36 @@ TradingAgents Next 是一个面向指定股票标的的、配置驱动的多智�
 
 ## 系统架构与执行流程
 
-### 系统架构
-
 ```mermaid
-flowchart LR
-    User([用户]) --> CLI["命令行 CLI"]
-    Config["默认配置 + 用户 YAML 配方"] --> Orchestrator["运行编排器 Orchestrator"]
-    CLI --> Orchestrator
-
-    Builtin["内置插件入口点"] --> PluginManager["插件管理器"]
-    PluginDir["自定义插件目录<br/>--plugin-dir"] --> PluginManager
-    Orchestrator --> PluginManager
-
-    Orchestrator --> DataRouter["数据路由器"]
-    PluginManager --> DataProvider["数据提供者插件"]
-    DataRouter --> DataProvider
-    DataProvider --> EvidenceStore["证据存储与清单"]
-    EvidenceStore --> EvidenceView["证据视图"]
-
-    Config --> DAG["DAG 执行器<br/>按 team 与 consumes / produces 构建"]
-    Orchestrator --> DAG
-    EvidenceView --> DAG
-    PluginManager --> Analysts["分析角色插件"]
-    PluginManager --> Manager["项目经理插件"]
-    DAG --> Analysts
-    Analysts --> AnalystPrompt["分析角色 Jinja2 提示词"]
-    Templates["模板目录"] --> AnalystPrompt
-    AnalystPrompt --> AnalystCall["分析角色 LLM 调用"]
-    PluginManager --> LLM["大语言模型插件"]
-    LLM --> AnalystCall
-    AnalystCall --> Outputs["分析角色研究结果"]
-    Outputs --> Manager
-    Manager --> ManagerPrompt["项目经理 Jinja2 提示词"]
-    Templates --> ManagerPrompt
-    ManagerPrompt --> ManagerCall["项目经理 LLM 调用"]
-    LLM --> ManagerCall
-    ManagerCall --> FinalOutput["最终角色结果"]
-    Outputs --> RunFiles["runs/{run_id}/"]
-    EvidenceStore --> RunFiles
-    FinalOutput --> RunFiles
-    FinalOutput --> Report["报告渲染器 + report.j2"]
-    Outputs --> Report
-    EvidenceStore --> Report
-    Report --> RunFiles
+flowchart TD
+    Input["标的代码与 YAML 配方"] --> Orchestrator["分析流程编排"]
+    Orchestrator --> Evidence["获取所需证据"]
+    Evidence --> Analysts["分析角色 (DAG)"]
+    Analysts --> Manager["项目经理汇总结果"]
+    Manager --> Report["最终 Markdown 报告"]
 ```
 
-### 默认分析团队的 DAG 示例
+配方中的 `team`、`consumes` 和 `produces` 决定参与分析的角色及其依赖关系。数据源、角色和大模型由内置或自定义插件提供；Jinja2 模板负责组装提示词。证据、角色输出和运行记录保存在 `runs/<run_id>/` 下。
 
-下图展示默认配方中的依赖关系。分析角色根据 `consumes` 获取证据并分别研究；项目经理消费各角色的研究产出，再生成最终结论。图中的分支表示依赖关系，不代表并发执行；实际节点和依赖由用户配方动态决定。
+### 默认团队的 DAG 示例
+
+各分析角色分别消费证据并产出研究结果，再由项目经理汇总。图中的分支表示依赖关系，不代表并发执行；实际 DAG 由配方决定。
 
 ```mermaid
 flowchart TD
-    Evidence["数据提供者获取的证据"] --> Market["市场分析师<br/>market_outlook"]
-    Evidence --> Fundamentals["基本面分析师<br/>fundamental_score"]
-    Evidence --> News["新闻分析师<br/>news_impact"]
-    Evidence --> Bull["看多研究员<br/>researcher_thesis"]
-    Evidence --> Bear["看空研究员<br/>researcher_thesis"]
+    Evidence["数据提供者获取的证据"] --> Market["市场分析师: market_outlook"]
+    Evidence --> Fundamentals["基本面分析师: fundamental_score"]
+    Evidence --> News["新闻分析师: news_impact"]
+    Evidence --> Bull["看多研究员: researcher_thesis"]
+    Evidence --> Bear["看空研究员: researcher_thesis"]
 
-    Market --> Manager["项目经理<br/>汇总团队分析"]
+    Market --> Manager["项目经理汇总团队分析"]
     Fundamentals --> Manager
     News --> Manager
     Bull --> Manager
     Bear --> Manager
     Manager --> Final["最终 Markdown 报告"]
 ```
-
-角色提示词通过 Jinja2（`.j2`）模板和证据数据渲染后交给 LLM。各角色的研究结果保存在运行目录 `outputs/` 下；最终报告以及有效配置、提示词、证据和日志也会保存在 `runs/<run_id>/` 中。
 
 ## 环境要求
 

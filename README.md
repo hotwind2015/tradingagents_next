@@ -20,72 +20,36 @@ This project generates research reports only. It does not execute trades and doe
 
 ## Architecture and Execution Flow
 
-### System Architecture
-
 ```mermaid
-flowchart LR
-    User([User]) --> CLI["Command-line CLI"]
-    Config["Default config + user YAML recipe"] --> Orchestrator["Run Orchestrator"]
-    CLI --> Orchestrator
-
-    Builtin["Built-in plugin entry points"] --> PluginManager["Plugin Manager"]
-    PluginDir["Custom plugin directory<br/>--plugin-dir"] --> PluginManager
-    Orchestrator --> PluginManager
-
-    Orchestrator --> DataRouter["Data Router"]
-    PluginManager --> DataProvider["Data Provider Plugin"]
-    DataRouter --> DataProvider
-    DataProvider --> EvidenceStore["Evidence Store and Manifest"]
-    EvidenceStore --> EvidenceView["Evidence View"]
-
-    Config --> DAG["DAG Executor<br/>built from team and consumes / produces"]
-    Orchestrator --> DAG
-    EvidenceView --> DAG
-    PluginManager --> Analysts["Analyst Role Plugins"]
-    PluginManager --> Manager["Project Manager Plugin"]
-    DAG --> Analysts
-    Analysts --> AnalystPrompt["Analyst Jinja2 Prompt"]
-    Templates["Template Directories"] --> AnalystPrompt
-    AnalystPrompt --> AnalystCall["Analyst LLM Call"]
-    PluginManager --> LLM["LLM Plugin"]
-    LLM --> AnalystCall
-    AnalystCall --> Outputs["Analyst Research Outputs"]
-    Outputs --> Manager
-    Manager --> ManagerPrompt["Project Manager Jinja2 Prompt"]
-    Templates --> ManagerPrompt
-    ManagerPrompt --> ManagerCall["Project Manager LLM Call"]
-    LLM --> ManagerCall
-    ManagerCall --> FinalOutput["Final Role Output"]
-    Outputs --> RunFiles["runs/{run_id}/"]
-    EvidenceStore --> RunFiles
-    FinalOutput --> RunFiles
-    FinalOutput --> Report["Report Renderer + report.j2"]
-    Outputs --> Report
-    EvidenceStore --> Report
-    Report --> RunFiles
+flowchart TD
+    Input["Ticker and YAML recipe"] --> Orchestrator["Analysis orchestration"]
+    Orchestrator --> Evidence["Collect required evidence"]
+    Evidence --> Analysts["Analyst roles (DAG)"]
+    Analysts --> Manager["Project manager synthesizes results"]
+    Manager --> Report["Final Markdown report"]
 ```
 
-### Example DAG for the Default Team
+The recipe's `team`, `consumes`, and `produces` settings determine which analyst roles run and how they depend on each other. Built-in or custom plugins provide the data sources, roles, and LLMs; Jinja2 templates prepare prompts. Evidence, role outputs, and run records are saved under `runs/<run_id>/`.
 
-The diagram below shows the dependencies in the default recipe. Analyst roles independently consume evidence and produce their research; the project manager consumes those outputs to prepare the final conclusion. Branches show dependency relationships, not concurrent execution. The actual nodes and dependencies are determined by the user recipe.
+### Default Team DAG Example
+
+Analyst roles consume evidence and produce their research independently. The project manager synthesizes their outputs. Branches represent dependencies, not concurrent execution; the actual graph is determined by the recipe.
 
 ```mermaid
 flowchart TD
-    Evidence["Evidence from data providers"] --> Market["Market Analyst<br/>market_outlook"]
-    Evidence --> Fundamentals["Fundamentals Analyst<br/>fundamental_score"]
-    Evidence --> News["News Analyst<br/>news_impact"]
-    Evidence --> Bull["Bull Researcher<br/>researcher_thesis"]
-    Evidence --> Bear["Bear Researcher<br/>researcher_thesis"]
+    Evidence["Evidence from data providers"] --> Market["Market Analyst: market_outlook"]
+    Evidence --> Fundamentals["Fundamentals Analyst: fundamental_score"]
+    Evidence --> News["News Analyst: news_impact"]
+    Evidence --> Bull["Bull Researcher: researcher_thesis"]
+    Evidence --> Bear["Bear Researcher: researcher_thesis"]
 
-    Market --> Manager["Project Manager<br/>synthesizes team analysis"]
+    Market --> Manager["Project Manager synthesizes team analysis"]
     Fundamentals --> Manager
     News --> Manager
     Bull --> Manager
     Bear --> Manager
-    Manager --> Final["Final Markdown Report"]
+    Manager --> Final["Final Markdown report"]
 ```
-
-Role prompts are rendered from Jinja2 (`.j2`) templates and evidence, then sent to the configured LLM. Role research outputs are saved under `outputs/`; the final report, effective configuration, prompts, evidence, and logs are also stored in `runs/<run_id>/`.
 
 ## Requirements
 
