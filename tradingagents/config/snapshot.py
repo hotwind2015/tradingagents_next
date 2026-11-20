@@ -32,8 +32,8 @@ def write_snapshot(config: EffectiveConfig, path: Path, recipe_data: dict[str, A
     }
     
     # === 将配方内容合并进快照 ===
-    if recipe_data:
-        payload["recipe_details"] = recipe_data
+    # if recipe_data:
+    #     payload["recipe_details"] = recipe_data
     
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(payload, allow_unicode=True, sort_keys=False), encoding="utf-8")
