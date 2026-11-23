@@ -82,6 +82,52 @@ i18n/
 - 全局 `--lang` 参数放在**主 parser**，不在子命令下
 - `_requested_language(argv)` 在创建 parser 前解析，传给 `set_i18n()`
 
+### 2.4 命名空间前缀变量模式（推荐）
+
+当同一命名空间下有**大量 key**（如 `cli.subcommands.evidence.*` 下 20+ 个 key）时，**强制使用前缀变量 + lambda** 避免重复拼接：
+
+#### ✅ 推荐写法
+```python
+def add_evidence_subparser(subparsers: argparse._SubParsersAction, i18n: I18n) -> None:
+    # 1. 定义命名空间前缀
+    node = "cli.subcommands.evidence"
+    n = lambda k: f"{node}.{k}"   # 单行 lambda，简洁
+
+    parser = subparsers.add_parser(
+        "evidence",
+        help=i18n.t(n("help")),           # -> cli.subcommands.evidence.help
+        description=i18n.t(n("help")),
+    )
+    sub = parser.add_subparsers(dest="evidence_action", required=True)
+
+    # 子命令参数
+    p_list.add_argument("--task-id", required=True, help=i18n.t(n("task_id_help")))
+    # ...
+```
+
+#### ❌ 禁止写法
+```python
+# 重复拼接，易错、难改、难读
+help=i18n.t("cli.subcommands.evidence.list_help")
+help=i18n.t("cli.subcommands.evidence.task_id_help")
+# ...
+```
+
+#### 适用场景
+| 场景 | 是否强制 |
+|------|----------|
+| 同一命名空间下 **≥ 5 个 key** | ✅ 强制 |
+| 临时/一次性 key | 可直接写全路径 |
+| 跨命名空间引用 | 写全路径，不建议跨空间复用 lambda |
+
+#### 原则小结
+| 原则 | 说明 |
+|------|------|
+| **前缀变量名** | 推荐 `node` / `ns` / `prefix`，语义清晰 |
+| **lambda 命名** | 推荐单字母 `n` / `k` / `key`，简洁 |
+| **定义位置** | 函数开头，紧跟 docstring 之后 |
+| **命名空间分隔** | 用 `.` 分隔，与 YAML key 一致 |
+
 ---
 
 ## 3. Provider 插件开发规范

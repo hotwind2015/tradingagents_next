@@ -6,18 +6,22 @@ from pathlib import Path
 
 from tradingagents.config.settings import get_env_settings
 from tradingagents.run.orchestrator import Orchestrator
-from tradingagents.utils import get_i18n
+from tradingagents.utils import I18n
 
 
-def add_run_subparser(subparsers: argparse._SubParsersAction, i18n) -> None:
+def add_run_subparser(subparsers: argparse._SubParsersAction, i18n: I18n) -> None:
     """注册 run 子命令"""
+
+    node = "cli.subcommands.run"
+    n = lambda k: f"{node}.{k}"
+        
     parser = subparsers.add_parser(
         "run",
-        help=i18n.t("cli.run_help"),
-        description=i18n.t("cli.run_help"),
+        help=i18n.t(n("help")),
+        description=i18n.t(n("help")),
     )
-    parser.add_argument("--ticker", required=True, help=i18n.t("cli.ticker_help"))
-    parser.add_argument("--config", type=Path, help=i18n.t("cli.config_help"))
+    parser.add_argument("--ticker", required=True, help=i18n.t(n("ticker_help")))
+    parser.add_argument("--config", type=Path, help=i18n.t(n("config_help")))
     parser.add_argument("--lang", help=i18n.t("cli.lang_help"))
     parser.add_argument(
         "--plugin-dir",
@@ -32,10 +36,10 @@ def add_run_subparser(subparsers: argparse._SubParsersAction, i18n) -> None:
         metavar="KEY=VALUE",
         help=i18n.t("cli.set_help"),
     )
-    parser.add_argument("--resume", help=i18n.t("cli.resume_help"))
+    parser.add_argument("--resume", help=i18n.t(n("resume_help")))
 
 
-def parse_set_args(set_args: list[str], i18n) -> dict[str, str]:
+def parse_set_args(set_args: list[str], i18n: I18n) -> dict[str, str]:
     """将 ['llm.model=gpt-4o', 'output.lang=en-US'] 转为字典"""
     overrides = {}
     for item in set_args:
@@ -46,7 +50,7 @@ def parse_set_args(set_args: list[str], i18n) -> dict[str, str]:
     return overrides
 
 
-def run_run_command(args: argparse.Namespace, i18n) -> int:
+def run_run_command(args: argparse.Namespace, i18n: I18n) -> int:
     """执行 run 子命令"""
     try:
         cli_overrides = parse_set_args(args.set, i18n)

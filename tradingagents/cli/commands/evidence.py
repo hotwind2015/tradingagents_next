@@ -13,37 +13,41 @@ from tradingagents.utils import I18n
 
 def add_evidence_subparser(subparsers: argparse._SubParsersAction, i18n: I18n) -> None:
     """注册 evidence 子命令组"""
+    # 定义 i18n 节点前缀，避免重复拼接
+    node = "cli.subcommands.evidence"
+    n = lambda k: f"{node}.{k}"
+
     parser = subparsers.add_parser(
         "evidence",
-        help=i18n.t("cli.evidence_help"),
-        description=i18n.t("cli.evidence_help"),
+        help=i18n.t(n("help")),
+        description=i18n.t(n("help")),
     )
     sub = parser.add_subparsers(dest="evidence_action", required=True)
 
     # list
-    p_list = sub.add_parser("list", help=i18n.t("cli.evidence_list_help"))
-    p_list.add_argument("--task-id", required=True, help=i18n.t("cli.evidence_task_id_help"))
-    p_list.add_argument("--runs-dir", default="runs", help=i18n.t("cli.evidence_runs_dir_help"))
-    p_list.add_argument("--format", choices=["table", "json"], default="table", help=i18n.t("cli.evidence_format_help"))
+    p_list = sub.add_parser("list", help=i18n.t(n("list_help")))
+    p_list.add_argument("--task-id", required=True, help=i18n.t(n("task_id_help")))
+    p_list.add_argument("--runs-dir", default="runs", help=i18n.t(n("runs_dir_help")))
+    p_list.add_argument("--format", choices=["table", "json"], default="table", help=i18n.t(n("format_help")))
 
     # show
-    p_show = sub.add_parser("show", help=i18n.t("cli.evidence_show_help"))
-    p_show.add_argument("--task-id", required=True, help=i18n.t("cli.evidence_task_id_help"))
-    p_show.add_argument("--evidence-id", required=True, help=i18n.t("cli.evidence_evidence_id_help"))
-    p_show.add_argument("--runs-dir", default="runs", help=i18n.t("cli.evidence_runs_dir_help"))
-    p_show.add_argument("--format", choices=["json", "pretty"], default="pretty", help=i18n.t("cli.evidence_format_help"))
+    p_show = sub.add_parser("show", help=i18n.t(n("show_help")))
+    p_show.add_argument("--task-id", required=True, help=i18n.t(n("task_id_help")))
+    p_show.add_argument("--evidence-id", required=True, help=i18n.t(n("evidence_id_help")))
+    p_show.add_argument("--runs-dir", default="runs", help=i18n.t(n("runs_dir_help")))
+    p_show.add_argument("--format", choices=["json", "pretty"], default="pretty", help=i18n.t(n("format_help")))
 
     # graph
-    p_graph = sub.add_parser("graph", help=i18n.t("cli.evidence_graph_help"))
-    p_graph.add_argument("--task-id", required=True, help=i18n.t("cli.evidence_task_id_help"))
-    p_graph.add_argument("--runs-dir", default="runs", help=i18n.t("cli.evidence_runs_dir_help"))
-    p_graph.add_argument("--format", choices=["dot", "json"], default="dot", help=i18n.t("cli.evidence_format_help"))
-    p_graph.add_argument("--output", help=i18n.t("cli.evidence_output_help"))
+    p_graph = sub.add_parser("graph", help=i18n.t(n("graph_help")))
+    p_graph.add_argument("--task-id", required=True, help=i18n.t(n("task_id_help")))
+    p_graph.add_argument("--runs-dir", default="runs", help=i18n.t(n("runs_dir_help")))
+    p_graph.add_argument("--format", choices=["dot", "json"], default="dot", help=i18n.t(n("format_help")))
+    p_graph.add_argument("--output", help=i18n.t(n("output_help")))
 
     # verify
-    p_verify = sub.add_parser("verify", help=i18n.t("cli.evidence_verify_help"))
-    p_verify.add_argument("--task-id", required=True, help=i18n.t("cli.evidence_task_id_help"))
-    p_verify.add_argument("--runs-dir", default="runs", help=i18n.t("cli.evidence_runs_dir_help"))
+    p_verify = sub.add_parser("verify", help=i18n.t(n("verify_help")))
+    p_verify.add_argument("--task-id", required=True, help=i18n.t(n("task_id_help")))
+    p_verify.add_argument("--runs-dir", default="runs", help=i18n.t(n("runs_dir_help")))
 
 
 def _load_manifest(runs_dir: str, task_id: str):
@@ -75,10 +79,11 @@ def run_evidence_command(args: argparse.Namespace, i18n: I18n) -> int:
     """执行 evidence 子命令"""
     manifest = _load_manifest(args.runs_dir, args.task_id)
     if not manifest:
-        print(i18n.t("cli.evidence_task_not_found", task_id=args.task_id), file=sys.stderr)
+        print(i18n.t("cli.subcommands.evidence.task_not_found", task_id=args.task_id), file=sys.stderr)
         return 1
 
     action = args.evidence_action
+    n = lambda k: f"cli.subcommands.evidence.{k}"
 
     if action == "list":
         rows = []
@@ -105,9 +110,9 @@ def run_evidence_command(args: argparse.Namespace, i18n: I18n) -> int:
             } for item in manifest.items], ensure_ascii=False, indent=2))
         else:
             _print_table(
-                [i18n.t("cli.evidence_col_id"), i18n.t("cli.evidence_col_type"), 
-                 i18n.t("cli.evidence_col_provider"), i18n.t("cli.evidence_col_level"),
-                 i18n.t("cli.evidence_col_ancestors"), i18n.t("cli.evidence_col_summary")],
+                [i18n.t("cli.subcommands.evidence.col_id"), i18n.t("cli.subcommands.evidence.col_type"),
+                 i18n.t("cli.subcommands.evidence.col_provider"), i18n.t("cli.subcommands.evidence.col_level"),
+                 i18n.t("cli.subcommands.evidence.col_ancestors"), i18n.t("cli.subcommands.evidence.col_summary")],
                 rows
             )
         return 0
@@ -119,7 +124,7 @@ def run_evidence_command(args: argparse.Namespace, i18n: I18n) -> int:
                 item = it
                 break
         if not item:
-            print(i18n.t("cli.evidence_not_found", evidence_id=args.evidence_id), file=sys.stderr)
+            print(i18n.t("cli.subcommands.evidence.not_found", evidence_id=args.evidence_id), file=sys.stderr)
             return 1
 
         data = {
@@ -160,17 +165,17 @@ def run_evidence_command(args: argparse.Namespace, i18n: I18n) -> int:
         lines = ["digraph evidence_graph {"]
         lines.append('  rankdir=LR;')
         lines.append('  node [shape=box, style=filled, fillcolor=lightblue];')
-        
+
         # 节点
         for item in manifest.items:
             label = f"{item.evidence_id}\\n{item.evidence_type}\\n{item.provider}"
             lines.append(f'  "{item.evidence_id}" [label="{label}"];')
-        
+
         # 边
         for item in manifest.items:
             for anc in item.lineage:
                 lines.append(f'  "{anc}" -> "{item.evidence_id}";')
-        
+
         lines.append("}")
         output = "\n".join(lines)
 
@@ -183,7 +188,7 @@ def run_evidence_command(args: argparse.Namespace, i18n: I18n) -> int:
             output_text = "\n".join(lines)
             if args.output:
                 Path(args.output).write_text(output_text, encoding="utf-8")
-                print(i18n.t("cli.evidence_graph_saved", path=args.output))
+                print(i18n.t("cli.subcommands.evidence.graph_saved", path=args.output))
             else:
                 print(output_text)
         return 0
@@ -196,12 +201,12 @@ def run_evidence_command(args: argparse.Namespace, i18n: I18n) -> int:
         try:
             ok = store.verify_integrity()
             if ok:
-                print(i18n.t("cli.evidence_verify_ok", task_id=args.task_id))
+                print(i18n.t("cli.subcommands.evidence.verify_ok", task_id=args.task_id))
             else:
-                print(i18n.t("cli.evidence_verify_fail", task_id=args.task_id))
+                print(i18n.t("cli.subcommands.evidence.verify_fail", task_id=args.task_id))
             return 0 if ok else 1
         except Exception as e:
-            print(i18n.t("cli.evidence_verify_error", error=e))
+            print(i18n.t("cli.subcommands.evidence.verify_error", error=e))
             return 1
 
     return 0
