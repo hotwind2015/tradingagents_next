@@ -236,10 +236,15 @@ class Orchestrator:
             for role in actual_analysts:
                 required_evidence.update(role.consumes)
                 
+            # 读取处理层级配置（默认 RAW）
+            processing_level = getattr(self.recipe.data, 'default_processing_level', 'raw')
+            type_levels = getattr(self.recipe.data, 'processing_level', {})
+            
             for ev_type in required_evidence:
                 chain = self.recipe.data.provider_chain.get(ev_type, ["yfinance"])
+                level = type_levels.get(ev_type, processing_level)
                 try:
-                    router.fetch_and_store(self.ticker, ev_type, chain)
+                    router.fetch_and_store(self.ticker, ev_type, chain, level)
                 except DataFetchError as e:
                     logger.error(i18n.t("run.data_fetch_aborted", error=e))
                     logger.error(i18n.t("run.analysis_aborted"))

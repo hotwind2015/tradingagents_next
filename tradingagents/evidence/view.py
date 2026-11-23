@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from tradingagents.models.evidence import EvidenceItem
+from tradingagents.models.evidence import EvidenceItem, ProcessingLevel
 
 
 class EvidenceView:
@@ -12,6 +12,8 @@ class EvidenceView:
         self._items = list(items)
         self._raw_dir = raw_dir
         self._raw_cache: dict[str, dict] = {}
+        # 构建 ID -> Item 索引，用于快速查找
+        self._id_index: dict[str, EvidenceItem] = {item.evidence_id: item for item in items}
     
     def _get_raw_dir(self) -> Path | None:
         return self._raw_dir
@@ -23,10 +25,7 @@ class EvidenceView:
         return [i for i in self._items if i.evidence_type in types]
 
     def get(self, evidence_id: str) -> EvidenceItem | None:
-        for item in self._items:
-            if item.evidence_id == evidence_id:
-                return item
-        return None
+        return self._id_index.get(evidence_id)
 
     def get_raw(self, evidence_id: str) -> dict[str, Any] | None:
         """按需加载原始 payload（懒加载 + 缓存）"""
@@ -57,6 +56,36 @@ class EvidenceView:
             if include_raw:
                 d["raw"] = self.get_raw(i.evidence_id)
             result.append(d)
+        return result
+
+    # === 基因链 API ===
+
+    def get_metadata(self, evidence_id: str) -> Any | None:
+        """获取证据元数据"""
+        item = self.get(evidence_id)
+        return item.metadata if item else None
+
+    def get_lineage(self, evidence_id: str) -> list[str]:
+        """获取基因链：正向溯源（祖先链）"""
+        item = self.get(evidence_id)
+        if not item:
+            return []
+        return list(item.lineage)  # 返回副本
+
+    def get_descendants(self, evidence_id: str) -> list[str]:
+        """获取后代链：反向追踪（所有引用该证据的后代）"""
+        descendants = []
+        for item in self._items:
+            if evidence_id in item.lineage:
+                descendants.append(item.evidence_id)
+        return descendants
+
+    def get_by_level(self, evidence_type: str, level: str) -> list["EvidenceItem"]:
+        """按处理层级筛选证据"""
+        result = []
+        for item in self.by_type(evidence_type):
+            if item.metadata and item.metadata.processing_level == level:
+                result.append(item)
         return result
 
     def __len__(self) -> int:

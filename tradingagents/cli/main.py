@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from tradingagents.cli.commands.evidence import add_evidence_subparser, run_evidence_command
 from tradingagents.config.settings import get_env_settings
 from tradingagents.run.orchestrator import Orchestrator
 from tradingagents.utils import I18n, get_i18n, set_i18n
@@ -59,6 +60,10 @@ def _build_parser(i18n: I18n) -> argparse.ArgumentParser:
         help=i18n.t("cli.set_help"),
     )
     run_parser.add_argument("--resume", help=i18n.t("cli.resume_help"))
+
+    # evidence 子命令组
+    add_evidence_subparser(subparsers)
+
     return parser
 
 
@@ -86,6 +91,8 @@ def main():
         except Exception as e:
             print(f"\n❌ {get_i18n().t('cli.error', error=e)}", file=sys.stderr)
             sys.exit(1)
+    elif args.command == "evidence":
+        sys.exit(run_evidence_command(args))
 
 
 if __name__ == "__main__":

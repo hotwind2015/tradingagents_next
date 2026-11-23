@@ -56,6 +56,24 @@ class AnalystContext:
     def get_all_evidence_raw(self, evidence_type: str) -> list[dict[str, Any]]:
         return self.evidence.get_all_raw(evidence_type)
     
+    # === 基因链与元数据便捷访问 ===
+    
+    def get_evidence_metadata(self, evidence_id: str) -> Any | None:
+        """获取证据元数据"""
+        return self.evidence.get_metadata(evidence_id)
+    
+    def get_lineage(self, evidence_id: str) -> list[str]:
+        """获取基因链：正向溯源（祖先链）"""
+        return self.evidence.get_lineage(evidence_id)
+    
+    def get_descendants(self, evidence_id: str) -> list[str]:
+        """获取后代链：反向追踪（所有引用该证据的后代）"""
+        return self.evidence.get_descendants(evidence_id)
+    
+    def get_evidence_by_level(self, evidence_type: str, level: str) -> list:
+        """按处理层级筛选证据"""
+        return self.evidence.get_by_level(evidence_type, level)
+    
     # --- 模板渲染用的扁平化字典 ---
     
     def to_prompt_dict(self, include_raw: bool = False) -> dict[str, Any]:
