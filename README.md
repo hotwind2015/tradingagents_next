@@ -170,7 +170,25 @@ templates/       Built-in analyst and report templates
 i18n/            Domain-organized translations (zh-CN, en-US)
 tradingagents/   CLI, orchestration, configuration, roles, data, LLM, and reporting
 docs/            Plugin development guides
+examples/        Graded examples (01_minimal → 09_full_team) — docs + living tests
+tests/           Internal test suite + test plugins (excluded from distribution)
 ```
+
+## Development Workflow
+
+This project follows an **Examples-Driven Development** model:
+
+```bash
+# 1. Mock test (logic verification, no network)
+tradingagents dev test --plugin-dir examples/01_minimal/plugins --ticker AAPL --mock
+
+# 2. Real run (end-to-end with real data/LLM)
+tradingagents run --ticker AAPL --config examples/01_minimal/recipe.yaml --plugin-dir examples/01_minimal/plugins
+```
+
+See [Plugin Development Guide](docs/plugin-development.md#10-examples-driven-development-workflow) for the complete workflow, examples catalog, and mock vs real configuration mapping.
+
+## License
 
 ## License
 

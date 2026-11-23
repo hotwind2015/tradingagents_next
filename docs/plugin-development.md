@@ -264,3 +264,143 @@ tradingagents run --ticker AAPL --config tests/recipes/smoke_v2.yaml
 ```
 
 The `tests/` and `plugins/` directories are excluded from the GitHub repository, so these local example paths may not exist after cloning. Create your own plugin and configuration files using the examples in this guide.
+
+## 9. Testing & Mock Plugin Isolation Rules
+
+**Critical**: Test and mock code must never leak into production packages (`tradingagents/`).
+
+| ❌ Forbidden | ✅ Required |
+|--------------|-------------|
+| Defining `Mock*`, `Test*`, `Fake*` classes in `tradingagents/` | Place test plugins in `tests/plugins/` or `examples/XX_xxx/plugins/` |
+| Importing mock implementations from production modules | Load test plugins via `--plugin-dir tests/plugins` or `--plugin-dir examples/.../plugins` |
+| Shipping mock code in PyPI package | Keep `tests/` and `examples/` out of distribution |
+
+### Directory Structure for Test Plugins
+
+```
+tests/
+└── plugins/
+    ├── providers/
+    │   └── mock_provider.py
+    ├── llm/
+    │   └── mock_llm.py
+    └── roles/
+        └── mock_roles.py
+```
+
+### Usage in Tests
+
+```python
+from tradingagents.run.plugin_manager import PluginManager
+from pathlib import Path
+
+pm = PluginManager()
+pm.discover_all([Path(__file__).parent / "plugins"])
+MockLLM = pm.get("llm", "mock")
+llm = MockLLM()
+```
+
+### Examples as Living Tests
+
+Each example in `examples/XX_xxx/` contains a complete, runnable plugin set under `plugins/`. These serve dual purpose:
+- **Documentation**: Users copy them as starting points
+- **Regression tests**: CI runs `tradingagents dev test --plugin-dir examples/XX_xxx/plugins --mock`
+
+This ensures examples stay working and demonstrate real plugin patterns.
+
+## 10. Examples-Driven Development Workflow
+
+### Standard R&D Flow
+
+Every change follows a **two-stage verification** pipeline:
+
+```mermaid
+graph LR
+    A[Code/Config Change] --> B[Mock Test<br/>examples/XX_xxx]
+    B --> C{Logic OK?}
+    C -- No --> A
+    C -- Yes --> D[Real Network Test<br/>config/default.yaml]
+    D --> E{Result Expected?}
+    E -- No --> A
+    E -- Yes --> F[Commit/Release]
+```
+
+### Mock vs Real Configuration Mapping
+
+| Aspect | Mock Stage (`examples/XX_xxx/`) | Real Stage (`config/default.yaml`) |
+|--------|----------------------------------|------------------------------------|
+| **Recipe** | `examples/XX_xxx/recipe.yaml` | `config/default.yaml` |
+| **Data Provider** | `mock` | `yfinance` (or production provider) |
+| **LLM** | `mock` llm | `openai` / compatible API |
+| **Plugin Loading** | `--plugin-dir examples/XX_xxx/plugins` | Official entry_points (zero config) |
+| **Run Command** | `tradingagents dev test --mock` | `tradingagents run` |
+
+### Examples Catalog (Standardized)
+
+| Example | Mock Test Focus | Real Test Verification |
+|---------|-----------------|------------------------|
+| `01_minimal` | Core orchestration, evidence flow, report gen | Basic team with built-ins |
+| `02_custom_role` | Role plugin, `configure()`, new `prepare_context` | Custom analyst in real team |
+| `03_custom_provider` | Provider plugin, `provider_args`, `get_raw()` | Real data source integration |
+| `04_custom_llm` | LLM plugin, `provider_args` passthrough | Production LLM (OpenAI/Azure/etc.) |
+| `05_args_extension` | Full `args`/`provider_args`/`model provider_args` chain | Production configs with custom params |
+| `06_rich_context` | `get_raw()`, `get_prior_fields()`, shared state, LangGraph prep | Real analysis with full context |
+| `07_langgraph_analyst` | Analyst internal StateGraph | Complex multi-step reasoning |
+| `08_plugin_packaging` | entry_points, local override, versioning | PyPI publish, team sharing |
+| `09_full_team` | Full ensemble: all roles, multi-provider, multi-model | Production-grade run |
+
+### Three-Stage Validation Command
+
+Each example **must** pass all three stages:
+
+```bash
+# 1. Spec validation (plugin contracts)
+tradingagents dev validate --plugin-dir examples/XX_xxx/plugins
+
+# 2. Mock test (logic verification, no network)
+tradingagents dev test --plugin-dir examples/XX_xxx/plugins --ticker AAPL --mock
+
+# 3. Real run (end-to-end with real data/LLM)
+tradingagents run --ticker AAPL --config examples/XX_xxx/recipe.yaml --plugin-dir examples/XX_xxx/plugins
+```
+
+### CI Integration
+
+```yaml
+# .github/workflows/ci.yml (concept)
+- name: Validate All Examples
+  run: |
+    for ex in examples/*/; do
+      tradingagents dev validate --plugin-dir "$ex/plugins"
+      tradingagents dev test --plugin-dir "$ex/plugins" --ticker AAPL --mock
+    done
+```
+
+### Mock Maintenance Principle
+
+> **Mock evolves with logic** — When you change orchestration, context, or plugin contracts, update the corresponding mock plugins in `examples/XX_xxx/plugins/` **in the same PR**. This keeps mock tests as accurate regression guards.
+
+### Directory Structure Standard
+
+```
+examples/
+├── 01_minimal/
+│   ├── recipe.yaml
+│   ├── plugins/          # Optional: only if custom plugins needed
+│   └── README.md
+├── 02_custom_role/
+│   ├── plugins/
+│   │   └── roles/
+│   │       └── my_analyst.py
+│   ├── recipe.yaml
+│   └── README.md
+...
+├── shared/
+│   ├── mock_data/        # Shared mock payloads for --mock mode
+│   └── scripts/
+│       └── run_all_examples.sh
+```
+
+---
+
+This convention ensures **mock tests are first-class citizens**, not afterthoughts, and prevents the "mock drift" problem where mocks become stale and give false confidence.

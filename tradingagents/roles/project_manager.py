@@ -2,10 +2,10 @@ from __future__ import annotations
 import json
 from typing import Any
 from tradingagents.evidence.view import EvidenceView
-from tradingagents.roles.base import ProjectManager as ProjectManagerBase, RoleOutput
+from tradingagents.roles.base import ProjectManager as ProjectManagerBase, RoleOutput, RoleBase
 from tradingagents.run.context import RunContext
 
-class ProjectManager(ProjectManagerBase):
+class ProjectManager(RoleBase, ProjectManagerBase):
     role_id = "project_manager"
     consumes = {"market_outlook"}
     template = "project_manager.j2"

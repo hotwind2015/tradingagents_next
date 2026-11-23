@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ from tradingagents.report.renderer import render_report
 from tradingagents.run.context import RunContext
 
 # 引入重构后的组件
+from tradingagents.run.analyst_context import AnalystContext
 from tradingagents.run.data_router import DataFetchError, DataRouter
 from tradingagents.run.plugin_manager import PluginManager
 from tradingagents.run.state_manager import StateManager
@@ -141,10 +143,9 @@ class Orchestrator:
         
         logger = setup_logging(self.run_dir, get_env_settings().log_level)
         logger.info(i18n.t("run.started", run_id=self.run_id, ticker=self.ticker))
-        write_snapshot(effective_cfg, self.run_dir / "effective_config.yaml",recipe_data=self.recipe.model_dump())
+        write_snapshot(effective_cfg, self.run_dir / "effective_config.yaml", recipe_data=self.recipe.model_dump())
 
         ctx = RunContext(run_id=self.run_id, run_dir=self.run_dir, recipe=self.recipe, lang=final_lang)
-        # llm = OpenAICompatibleClient()
         renderer = PromptRenderer(self.template_dir)
         persister = PromptPersister(self.run_dir, strategy=self.recipe.prompt_persistence)
         store = EvidenceStore(self.run_dir, self.run_id, self.recipe.id, self.recipe.version)
@@ -192,7 +193,9 @@ class Orchestrator:
         try:
             # 改用 plugin_manager.get
             llm_cls = plugin_manager.get("llm", llm_provider_id)
-            llm = llm_cls()
+            # 透传 provider_args 给 LLM 客户端
+            llm_provider_args = self.recipe.models.provider_args.get(llm_provider_id, {})
+            llm = llm_cls(**llm_provider_args) if llm_provider_args else llm_cls()
             logger.info(
                 i18n.t("run.llm_initialized", provider_id=llm_provider_id)
             )
@@ -226,7 +229,8 @@ class Orchestrator:
         # 3. 数据层：判断是否断点续跑，还是新拉取数据
         if not store.manifest_path.exists():
             logger.info(i18n.t("run.fetching_evidence"))
-            router = DataRouter(plugin_manager, store)
+            # 透传 provider_args 给 DataRouter
+            router = DataRouter(plugin_manager, store, self.recipe.data.provider_args)
             
             required_evidence = set()
             for role in actual_analysts:
@@ -244,7 +248,8 @@ class Orchestrator:
             logger.info(i18n.t("run.evidence_manifest_loaded"))
             store.manifest = EvidenceManifest.model_validate_json(store.manifest_path.read_text(encoding="utf-8"))
 
-        evidence_view = EvidenceView(store.manifest.items)
+        # 传递 raw_dir 给 EvidenceView 以支持 get_raw()
+        evidence_view = EvidenceView(store.manifest.items, store._raw_dir)
 
         # 4. 编排层：构建 DAG 依赖图
         nodes, edges = [], []
@@ -273,9 +278,50 @@ class Orchestrator:
         state = {"role_outputs": [], "final_report": None}
         executor = DynamicGraphExecutor(ir, state)
 
+        # 创建基础上下文（共享 prior_outputs 引用）
+        base_ctx = AnalystContext(
+            run_id=self.run_id,
+            run_dir=self.run_dir,
+            ticker=self.ticker,
+            lang=final_lang,
+            recipe=self.recipe,
+            evidence=evidence_view,
+            shared_state={},  # 可预置：如共享 HTTP 客户端、缓存等
+        )
+        
+        # 角色实例缓存（支持 configure + 复用）
+        role_instances: dict[str, object] = {}
+
+        def _call_prepare_context(role_obj, role_ctx: AnalystContext) -> dict:
+            """自动适配新/旧 prepare_context 签名"""
+            sig = inspect.signature(role_obj.prepare_context)
+            params = list(sig.parameters.keys())
+            
+            if len(params) == 1 and params[0] in ("ctx", "context"):
+                # 新签名：单一 AnalystContext
+                return role_obj.prepare_context(role_ctx)
+            elif len(params) == 2:
+                # 旧签名：(evidence, run_ctx) - 向后兼容
+                return role_obj.prepare_context(role_ctx.evidence, RunContext(
+                    run_id=role_ctx.run_id, run_dir=role_ctx.run_dir,
+                    recipe=role_ctx.recipe, lang=role_ctx.lang
+                ))
+            elif len(params) == 3:
+                # PM 旧签名：(outputs, evidence, run_ctx) - 向后兼容
+                return role_obj.prepare_context(
+                    [o for o in role_ctx.prior_outputs.values()],
+                    role_ctx.evidence,
+                    RunContext(
+                        run_id=role_ctx.run_id, run_dir=role_ctx.run_dir,
+                        recipe=role_ctx.recipe, lang=role_ctx.lang
+                    )
+                )
+            else:
+                raise TypeError(f"Unsupported prepare_context signature: {sig}")
+
         def make_analyst_fn(role_spec):
             def inner(s):
-                # 注意这里的 StateManager 缓存 key，用 plugin 名
+                # 缓存检查
                 cached_output = state_mgr.load_output(role_spec.role_id)
                 if cached_output:
                     logger.info(
@@ -284,16 +330,44 @@ class Orchestrator:
                         )
                     )
                     s["role_outputs"].append(cached_output)
+                    # 关键：更新 base_ctx.prior_outputs
+                    base_ctx.prior_outputs[role_spec.role_id] = cached_output
                     return s
                 
-                role_cls = plugin_manager.get("role", role_spec.role_id)
-                role = role_cls()
+                # 获取/创建角色实例
+                if role_spec.role_id not in role_instances:
+                    role_cls = plugin_manager.get("role", role_spec.role_id)
+                    role = role_cls()
+                    # 透传 args 给角色
+                    if hasattr(role, "configure"):
+                        role.configure(role_spec.args)
+                    role_instances[role_spec.role_id] = role
+                else:
+                    role = role_instances[role_spec.role_id]
+                
                 logger.info(i18n.t("run.analyst_started", role_id=role.role_id))
                 
-                prompt_ctx = role.prepare_context(evidence_view, ctx)
+                # 构建该角色的专属上下文（含上游输出）
+                role_ctx = AnalystContext(
+                    run_id=base_ctx.run_id,
+                    run_dir=base_ctx.run_dir,
+                    ticker=base_ctx.ticker,
+                    lang=base_ctx.lang,
+                    recipe=base_ctx.recipe,
+                    evidence=base_ctx.evidence,
+                    prior_outputs=dict(base_ctx.prior_outputs),  # 拷贝当前已完成的上游输出
+                    shared_state=base_ctx.shared_state,
+                    role_args=role_spec.args,
+                    model_tier=role_spec.model_tier,
+                    model_config=self.recipe.models.quick if role_spec.model_tier == "quick" else self.recipe.models.deep,
+                )
+                
+                # 统一调用：单一 context 参数
+                prompt_ctx = _call_prepare_context(role, role_ctx)
                 prompt_ctx["output_language"] = output_language
                 prompt_ctx["ticker"] = self.ticker
                 
+                # 模板验证
                 try:
                     renderer.validate_variables(role.template, set(prompt_ctx.keys()))
                 except Exception as e:
@@ -309,31 +383,51 @@ class Orchestrator:
                 prompt_text = renderer.render(role.template, prompt_ctx)
                 persister.save(role.role_id, 1, prompt_text, {"template": role.template})
                 
-                model_cfg = self.recipe.models.quick if role_spec.model_tier == "quick" else self.recipe.models.deep
-                raw_res = llm.invoke(prompt_text, model_cfg)
+                raw_res = llm.invoke(prompt_text, role_ctx.model_config)
                 out = role.parse_output(raw_res)
                 
                 state_mgr.save_output(role_spec.role_id, out)
+                
+                # 关键：写入共享上下文，供下游角色使用
+                base_ctx.prior_outputs[role_spec.role_id] = out
                 s["role_outputs"].append(out)
                 return s
             return inner
 
         def run_pm_fn(s):
-            pm_spec = self.recipe.team.project_manager
+            pm_spec = actual_pm
             
-            cached_output = state_mgr.load_output(pm_spec)
+            cached_output = state_mgr.load_output(pm_spec.role_id)
             if cached_output:
                 logger.info(
-                    i18n.t("run.cached_manager_output", role_id=pm_spec)
+                    i18n.t("run.cached_manager_output", role_id=pm_spec.role_id)
                 )
                 s["final_report"] = cached_output
                 return s
                 
-            role_cls = plugin_manager.get("role",pm_spec)
+            role_cls = plugin_manager.get("role", pm_spec.role_id)
             role = role_cls()
+            if hasattr(role, "configure"):
+                role.configure({})  # PM 通常无 args
+            
             logger.info(i18n.t("run.manager_started"))
             
-            prompt_ctx = role.prepare_context(s["role_outputs"], evidence_view, ctx)
+            # PM 拿到全量 prior_outputs
+            pm_ctx = AnalystContext(
+                run_id=base_ctx.run_id,
+                run_dir=base_ctx.run_dir,
+                ticker=base_ctx.ticker,
+                lang=base_ctx.lang,
+                recipe=base_ctx.recipe,
+                evidence=base_ctx.evidence,
+                prior_outputs=base_ctx.prior_outputs,  # 全部分析师输出
+                shared_state=base_ctx.shared_state,
+                role_args={},
+                model_tier="deep",
+                model_config=self.recipe.models.deep,
+            )
+            
+            prompt_ctx = _call_prepare_context(role, pm_ctx)
             prompt_ctx["output_language"] = output_language
             prompt_ctx["ticker"] = self.ticker
             
@@ -348,14 +442,14 @@ class Orchestrator:
                     )
                 )
                 raise
-                
+            
             prompt_text = renderer.render(role.template, prompt_ctx)
             persister.save(role.role_id, 1, prompt_text, {"template": role.template})
             
-            raw_res = llm.invoke(prompt_text, self.recipe.models.deep)
+            raw_res = llm.invoke(prompt_text, pm_ctx.model_config)
             out = role.parse_output(raw_res)
             
-            state_mgr.save_output(pm_spec, out)
+            state_mgr.save_output(pm_spec.role_id, out)
             s["final_report"] = out
             return s
 

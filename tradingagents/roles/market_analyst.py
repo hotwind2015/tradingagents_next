@@ -2,12 +2,12 @@ from __future__ import annotations
 import json
 from typing import Any
 from tradingagents.evidence.view import EvidenceView
-from tradingagents.roles.base import AnalystRole, RoleOutput
+from tradingagents.roles.base import AnalystRole, RoleOutput, RoleBase
 from tradingagents.run.context import RunContext
 
 from tradingagents.utils.json_parser import extract_json
 
-class MarketAnalyst(AnalystRole):
+class MarketAnalyst(RoleBase, AnalystRole):
     role_id = "market_analyst"
     consumes = {"market_data"}
     produces = {"market_outlook"}

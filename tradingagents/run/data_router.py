@@ -16,16 +16,19 @@ class DataFetchError(Exception):
     pass
 
 class DataRouter:
-    def __init__(self, plugin_manager: PluginManager, store: EvidenceStore):
+    def __init__(self, plugin_manager: PluginManager, store: EvidenceStore, provider_args: dict[str, dict[str, Any]] | None = None):
         self.plugin_manager = plugin_manager
         self.store = store
+        self.provider_args = provider_args or {}
 
     def fetch_and_store(self, ticker: str, ev_type: str, provider_chain: list[str]):
         i18n = get_i18n()
         for provider_id in provider_chain:
             try:
                 provider_obj = self.plugin_manager.get("provider", provider_id)
-                provider = provider_obj() if isinstance(provider_obj, type) else provider_obj
+                # 透传 provider_args 给 provider 实例化
+                args = self.provider_args.get(provider_id, {})
+                provider = provider_obj(**args) if args else (provider_obj() if isinstance(provider_obj, type) else provider_obj)
                 
                 req = DataRequest(evidence_type=ev_type, ticker=ticker, as_of=datetime.now().date())
                 raw_evs = provider.fetch(req)

@@ -16,16 +16,25 @@ class OpenAICompatibleClient(LLMClient):
 
     llm_id = "openai"
     
-    def __init__(self):
+    def __init__(self, **kwargs):
         settings = get_env_settings()
-        if not settings.llm_api_key:
-            logger.warning(get_i18n().t("errors.llm_api_key_missing"))
+        
+        # 优先级：kwargs > 环境变量
+        api_key = kwargs.get("api_key") or (settings.llm_api_key.get_secret_value() if settings.llm_api_key else None)
+        base_url = kwargs.get("base_url") or settings.llm_base_url
+        organization = kwargs.get("organization")
+        
+        if not api_key:
+            error_msg = get_i18n().t("errors.llm_api_key_missing")
+            logger.error(error_msg)
+            raise ValueError(error_msg)
             
-        self.client = OpenAI(
-            api_key=settings.llm_api_key.get_secret_value() if settings.llm_api_key else "sk-mock",
-            base_url=settings.llm_base_url,
-        )
-        self.default_model = settings.llm_model
+        client_kwargs = {"api_key": api_key, "base_url": base_url}
+        if organization:
+            client_kwargs["organization"] = organization
+            
+        self.client = OpenAI(**client_kwargs)
+        self.default_model = kwargs.get("model") or settings.llm_model
 
     def invoke(self, prompt: str, model_config: dict[str, Any]) -> str:
         # 优先级：配方模型配置 > 环境变量(TRADINGAGENTS_LLM_MODEL) > 代码默认值

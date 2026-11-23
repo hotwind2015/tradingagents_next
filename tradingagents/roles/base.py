@@ -11,6 +11,15 @@ class RoleOutput(BaseModel):
     narrative: str = ""
     cited_evidence: list[str] = Field(default_factory=list)
 
+
+class RoleBase:
+    """角色基类，提供默认实现，内置角色可直接继承"""
+    
+    def configure(self, args: dict[str, Any]) -> None:
+        """接收扩展参数（默认空实现，子类可重写）"""
+        pass
+
+
 @runtime_checkable
 class AnalystRole(Protocol):
     plugin_type: str = "role"
@@ -20,7 +29,10 @@ class AnalystRole(Protocol):
     template: str
 
     def prepare_context(self, evidence: EvidenceView, ctx: RunContext) -> dict[str, Any]: ...
+    def prepare_context(self, ctx: "AnalystContext") -> dict[str, Any]: ...
     def parse_output(self, raw_response: str) -> RoleOutput: ...
+    def configure(self, args: dict[str, Any]) -> None: ...
+
 
 @runtime_checkable
 class ProjectManager(Protocol):
@@ -30,4 +42,6 @@ class ProjectManager(Protocol):
     template: str
 
     def prepare_context(self, outputs: list[RoleOutput], evidence: EvidenceView, ctx: RunContext) -> dict[str, Any]: ...
+    def prepare_context(self, ctx: "AnalystContext") -> dict[str, Any]: ...
     def parse_output(self, raw_response: str) -> RoleOutput: ...
+    def configure(self, args: dict[str, Any]) -> None: ...

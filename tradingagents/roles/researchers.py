@@ -2,10 +2,10 @@ from __future__ import annotations
 import json
 from typing import Any
 from tradingagents.evidence.view import EvidenceView
-from tradingagents.roles.base import AnalystRole, RoleOutput
+from tradingagents.roles.base import AnalystRole, RoleOutput, RoleBase
 from tradingagents.run.context import RunContext
 
-class BaseResearcher(AnalystRole):
+class BaseResearcher(RoleBase, AnalystRole):
     def prepare_context(self, evidence: EvidenceView, ctx: RunContext) -> dict[str, Any]:
         # 将上下文传给 prompt
         return {

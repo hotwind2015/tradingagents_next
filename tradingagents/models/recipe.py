@@ -14,6 +14,7 @@ class RoleSpec(BaseModel):
     template: str
     model_tier: Literal["quick", "deep"] = "quick"
     params: dict[str, Any] = Field(default_factory=dict)
+    args: dict[str, Any] = Field(default_factory=dict)
 
 
 class TeamSpec(BaseModel):
@@ -26,12 +27,14 @@ class DataSpec(BaseModel):
     required: list[str] = Field(default_factory=list)
     provider_chain: dict[str, list[str]] = Field(default_factory=dict)
     fallback: list[str] = Field(default_factory=list)
+    provider_args: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 class ModelRouting(BaseModel):
     provider: str = "openai"
     quick: dict[str, Any] = Field(default_factory=dict)
     deep: dict[str, Any] = Field(default_factory=dict)
+    provider_args: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 class Recipe(BaseModel):
