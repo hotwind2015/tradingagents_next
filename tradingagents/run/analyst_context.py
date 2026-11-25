@@ -32,6 +32,9 @@ class AnalystContext:
     # === 只读：配置透传（来自 recipe.roles[role_id].args）===
     role_args: dict[str, Any] = field(default_factory=dict)
     
+    # === 只读：角色消费的证据类型（来自 recipe.roles[role_id].consumes）===
+    consumes: list[str] = field(default_factory=list)
+    
     # === 只读：模型配置 ===
     model_tier: str = "quick"  # "quick" | "deep"
     model_config: dict[str, Any] = field(default_factory=dict)

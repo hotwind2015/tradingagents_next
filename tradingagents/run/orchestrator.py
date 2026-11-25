@@ -388,6 +388,7 @@ class Orchestrator:
                     role_args=role_spec.args,
                     model_tier=role_spec.model_tier,
                     model_config=self.recipe.models.quick if role_spec.model_tier == "quick" else self.recipe.models.deep,
+                    consumes=role_spec.consumes,
                 )
                 
                 # 统一调用：单一 context 参数

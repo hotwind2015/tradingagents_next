@@ -16,7 +16,7 @@ class Trader(RoleBase, AnalystRole):
     def prepare_context(self, ctx: "AnalystContext") -> dict[str, Any]:
         return {
             "ticker": ctx.ticker,
-            "evidence": ctx.evidence.to_prompt_items(self.consumes),
+            "evidence": ctx.evidence.to_prompt_items(ctx.consumes, include_raw=True),
             "output_language": ctx.lang,
             "investment_plan": ctx.get_prior_narrative("research_manager"),
             "market_outlook": ctx.get_prior_narrative("market_analyst"),
@@ -42,6 +42,7 @@ class Trader(RoleBase, AnalystRole):
                     "trade_management": data.get("trade_management", {}),
                     "action_table": data.get("action_table", []),
                     "key_levels": data.get("key_levels", {}),
+                    "data_suggestions": data.get("data_suggestions", []),
                 },
                 narrative=data.get("narrative", ""),
                 cited_evidence=data.get("cited_evidence", []),

@@ -16,7 +16,7 @@ class FundamentalsAnalyst(RoleBase, AnalystRole):
     def prepare_context(self, ctx: "AnalystContext") -> dict[str, Any]:
         return {
             "ticker": ctx.ticker,
-            "evidence": ctx.evidence.to_prompt_items(self.consumes),
+            "evidence": ctx.evidence.to_prompt_items(ctx.consumes, include_raw=True),
             "output_language": ctx.lang,
         }
 
@@ -28,6 +28,7 @@ class FundamentalsAnalyst(RoleBase, AnalystRole):
                 fields={
                     "fundamental_score": data.get("fundamental_score", 0),
                     "core_findings": data.get("core_findings", {}),
+                    "data_suggestions": data.get("data_suggestions", []),
                 },
                 narrative=data.get("narrative", ""),
                 cited_evidence=data.get("cited_evidence", []),

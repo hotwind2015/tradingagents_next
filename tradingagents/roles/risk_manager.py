@@ -16,7 +16,7 @@ class RiskManager(RoleBase, AnalystRole):
     def prepare_context(self, ctx: "AnalystContext") -> dict[str, Any]:
         return {
             "ticker": ctx.ticker,
-            "evidence": ctx.evidence.to_prompt_items(self.consumes),
+            "evidence": ctx.evidence.to_prompt_items(ctx.consumes, include_raw=True),
             "output_language": ctx.lang,
             "trader_plan": ctx.get_prior_narrative("trader"),
             "market_outlook": ctx.get_prior_narrative("market_analyst"),
@@ -49,6 +49,7 @@ class RiskManager(RoleBase, AnalystRole):
                     "stress_test_results": data.get("stress_test_results", []),
                     "risk_reward_matrix": data.get("risk_reward_matrix", []),
                     "aggressive_conservative_table": data.get("aggressive_conservative_table", []),
+                    "data_suggestions": data.get("data_suggestions", []),
                 },
                 narrative=data.get("narrative", ""),
                 cited_evidence=data.get("cited_evidence", []),

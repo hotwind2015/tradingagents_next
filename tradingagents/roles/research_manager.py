@@ -16,7 +16,7 @@ class ResearchManager(RoleBase, AnalystRole):
     def prepare_context(self, ctx: "AnalystContext") -> dict[str, Any]:
         return {
             "ticker": ctx.ticker,
-            "evidence": ctx.evidence.to_prompt_items(self.consumes),
+            "evidence": ctx.evidence.to_prompt_items(ctx.consumes, include_raw=True),
             "output_language": ctx.lang,
             "market_outlook": ctx.get_prior_narrative("market_analyst"),
             "sentiment_report": ctx.get_prior_narrative("sentiment_analyst"),
@@ -45,6 +45,7 @@ class ResearchManager(RoleBase, AnalystRole):
                     "entry_exit_strategy": data.get("entry_exit_strategy", {}),
                     "bull_bear_table": data.get("bull_bear_table", []),
                     "key_evidence_summary": data.get("key_evidence_summary", []),
+                    "data_suggestions": data.get("data_suggestions", []),
                 },
                 narrative=data.get("narrative", ""),
                 cited_evidence=data.get("cited_evidence", []),

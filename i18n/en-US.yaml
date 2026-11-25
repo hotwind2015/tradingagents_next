@@ -199,6 +199,12 @@ report:
   lineage: "Lineage"
   processing_chain: "Processing Chain"
   quality: "Quality"
+  data_suggestions: "Data Optimization Suggestions"
+  analyst: "Analyst"
+  category: "Category"
+  suggestion: "Suggestion"
+  reason: "Reason"
+  priority: "Priority"
 
   analyst_views:
     title: "2. Analyst Views"
