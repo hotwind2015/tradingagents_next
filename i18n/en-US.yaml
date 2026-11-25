@@ -4,6 +4,7 @@ cli:
   lang_help: "Override the report language (zh-CN or en-US)"
   plugin_dir_help: "Add a custom plugin directory; can be repeated"
   set_help: "Override a config value, for example --set models.quick.model=gpt-4o"
+  debug_help: "Enable debug mode, print full stack trace on errors"
   success: "Analysis complete. Report generated at: {report_path}"
   error: "Run failed: {error}"
   invalid_set_format: "Invalid --set argument: {item}. Expected key=value."

@@ -7,6 +7,7 @@ from pathlib import Path
 from tradingagents.config.settings import get_env_settings
 from tradingagents.run.orchestrator import Orchestrator
 from tradingagents.utils import I18n
+from tradingagents.utils.debug import is_debug
 
 
 def add_run_subparser(subparsers: argparse._SubParsersAction, i18n: I18n) -> None:
@@ -68,5 +69,9 @@ def run_run_command(args: argparse.Namespace, i18n: I18n) -> int:
         print(f"\n{i18n.t('cli.success', report_path=report_path)}")
         return 0
     except Exception as e:
-        print(f"\n{i18n.t('cli.error', error=e)}", file=sys.stderr)
+        if is_debug():
+            import traceback
+            traceback.print_exc()
+        else:
+            print(f"\n{i18n.t('cli.error', error=e)}", file=sys.stderr)
         return 1

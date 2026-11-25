@@ -9,6 +9,7 @@ from typing import Any
 from tradingagents.evidence.store import EvidenceStore
 from tradingagents.models.evidence import EvidenceManifest
 from tradingagents.utils import I18n
+from tradingagents.utils.debug import is_debug
 
 
 def add_evidence_subparser(subparsers: argparse._SubParsersAction, i18n: I18n) -> None:
@@ -206,7 +207,11 @@ def run_evidence_command(args: argparse.Namespace, i18n: I18n) -> int:
                 print(i18n.t("cli.subcommands.evidence.verify_fail", task_id=args.task_id))
             return 0 if ok else 1
         except Exception as e:
-            print(i18n.t("cli.subcommands.evidence.verify_error", error=e))
+            if is_debug():
+                import traceback
+                traceback.print_exc()
+            else:
+                print(i18n.t("cli.subcommands.evidence.verify_error", error=e))
             return 1
 
     return 0

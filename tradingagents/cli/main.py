@@ -9,6 +9,7 @@ from tradingagents.cli.commands.run import add_run_subparser, run_run_command
 from tradingagents.config.settings import get_env_settings
 from tradingagents.run.orchestrator import Orchestrator
 from tradingagents.utils import I18n, get_i18n, set_i18n
+from tradingagents.utils.debug import set_debug, is_debug
 
 
 def _requested_language(argv: list[str]) -> str:
@@ -23,6 +24,7 @@ def _requested_language(argv: list[str]) -> str:
 def _build_parser(i18n: I18n) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=i18n.t("cli.description"))
     parser.add_argument("--lang", help=i18n.t("cli.lang_help"))
+    parser.add_argument("--debug", action="store_true", help=i18n.t("cli.debug_help"))
     subparsers = parser.add_subparsers(
         dest="command",
         required=True,
@@ -44,6 +46,9 @@ def main():
     i18n = get_i18n()
     parser = _build_parser(i18n)
     args = parser.parse_args(argv)
+
+    # Set global debug flag
+    set_debug(args.debug)
 
     if args.command == "run":
         sys.exit(run_run_command(args, i18n))
