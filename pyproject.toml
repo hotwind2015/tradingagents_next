@@ -17,15 +17,23 @@ dependencies = [
 openai = "tradingagents.llm.openai_client:OpenAICompatibleClient"
 
 [project.entry-points."tradingagents.providers"]
-yfinance = "tradingagents.providers.yfinance.provider:YFinanceProvider"
+yfinance_kline = "tradingagents.providers.yfinance.kline:YFinanceKlineProvider"
+yfinance_snapshot = "tradingagents.providers.yfinance.snapshot:YFinanceSnapshotProvider"
+yfinance_news = "tradingagents.providers.yfinance.news:YFinanceNewsProvider"
+yfinance_fundamentals = "tradingagents.providers.yfinance.fundamentals:YFinanceFundamentalsProvider"
+fred_macro = "tradingagents.providers.fred.macro:FredMacroProvider"
+stocktwits_social = "tradingagents.providers.stocktwits.social:StockTwitsSocialProvider"
+reddit_social = "tradingagents.providers.reddit.social:RedditSocialProvider"
 
 [project.entry-points."tradingagents.roles"]
 market_analyst = "tradingagents.roles.market_analyst:MarketAnalyst"
 project_manager = "tradingagents.roles.project_manager:ProjectManager"
 fundamentals_analyst = "tradingagents.roles.fundamentals_analyst:FundamentalsAnalyst"
-bull_researcher = "tradingagents.roles.researchers:BullResearcher"
-bear_researcher = "tradingagents.roles.researchers:BearResearcher"
 news_analyst = "tradingagents.roles.news_analyst:NewsAnalyst"
+research_manager = "tradingagents.roles.research_manager:ResearchManager"
+trader = "tradingagents.roles.trader:Trader"
+risk_manager = "tradingagents.roles.risk_manager:RiskManager"
+sentiment_analyst = "tradingagents.roles.sentiment_analyst:SentimentAnalyst"
 
 [build-system]
 requires = ["setuptools>=68"]

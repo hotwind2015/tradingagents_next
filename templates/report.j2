@@ -1,42 +1,196 @@
-# {{ i18n.report.title }} - {{ ticker }}
+{# Professional Report Template with Jinja2 Macros #}
+{% macro render_table(headers, rows, alignments=None) -%}
+{%- if rows -%}
+{%- if alignments is none -%}{% set alignments = [''] * headers|length %}{%- endif -%}
+| {{ headers | join(' | ') }} |
+| {%- for a in alignments -%}{{ '---' ~ a }}{% if not loop.last %} | {% endif %}{%- endfor -%} |
+{%- for row in rows -%}
+| {{ row | join(' | ') }} |
+{%- endfor -%}
+{%- endif -%}
+{% endmacro %}
 
-> **{{ i18n.report.generated_at }}**: {{ run_time }}
-> **{{ i18n.report.run_id }}**: {{ run_id }}
+{% macro render_kv_table(data, key_header='Field', value_header='Value') -%}
+{%- if data -%}
+| **{{ key_header }}** | **{{ value_header }}** |
+| :--- | :--- |
+{%- for k, v in data.items() -%}
+| **{{ k }}** | {{ v }} |
+{%- endfor -%}
+{%- endif -%}
+{% endmacro %}
 
-## {{ i18n.report.executive_summary }}
+{% macro section_header(title, level=2) -%}
+{{ '#' * level }} {{ title }}
 
-{{ final_report.narrative }}
+{% endmacro %}
 
-{% if final_report.cited_evidence %}
-**{{ i18n.report.cited_evidence }}**: {% for ev in final_report.cited_evidence %}`{{ ev }}` {% endfor %}
+{% macro evidence_row(ev) -%}
+| `{{ ev.evidence_id }}` | {{ ev.evidence_type }} | {{ ev.provider }} | {{ ev.summary }} | {{ ev.metadata.processing_level if ev.metadata else 'N/A' }} | {{ ev.metadata.quality_scores | tojson if ev.metadata and ev.metadata.quality_scores else '-' }} |
+{% endmacro %}
+
+{% macro lineage_chain(ev) -%}
+{%- if ev.lineage -%}
+**{{ i18n.t('report.lineage') }}**: {% for anc in ev.lineage %}`{{ anc }}`{% if not loop.last %} → {% endif %}{% endfor %}
+{%- endif -%}
+{% endmacro %}
+
+{% macro processing_chain(ev) -%}
+{%- if ev.metadata and ev.metadata.processing_chain -%}
+**{{ i18n.t('report.processing_chain') }}**: {{ ev.metadata.processing_chain | join(' → ') }}
+{%- endif -%}
+{% endmacro %}
+
+{% macro quality_scores(ev) -%}
+{%- if ev.metadata and ev.metadata.quality_scores -%}
+**{{ i18n.t('report.quality') }}**: {{ ev.metadata.quality_scores | tojson }}
+{%- endif -%}
+{% endmacro %}
+
+{# ========== MAIN REPORT ========== #}
+
+# {{ i18n.t("report.title", default="AI Investment Analysis Report") }} - {{ ticker }}
+
+> **{{ i18n.t("report.generated_at", default="Generated at") }}**: {{ run_time }}
+{% if run_id %}> **{{ i18n.t("report.run_id", default="Run ID") }}**: {{ run_id }}{% endif %}
+{% if analysis_date %}> **{{ i18n.t("report.analysis_date", default="Analysis date") }}**: {{ analysis_date }}{% endif %}
+> **{{ i18n.t("report.rating", default="Rating") }}**: {{ final_rating }}
+> **{{ i18n.t("report.version", default="Version") }}**: {{ version }}
+> **{{ i18n.t("report.model_info", default="Model") }}**: {{ model_info }}
+> **{{ i18n.t("report.analysts", default="Analysts") }}**: {{ analysts }}
+> **{{ i18n.t("report.research_rounds", default="Research rounds") }}: {{ research_rounds }}, **{{ i18n.t("report.risk_rounds", default="Risk rounds") }}**: {{ risk_rounds }}
+{% if vendors %}> **{{ i18n.t("report.vendors", default="Data vendors") }}**: {{ vendors }}{% endif %}
+{% if memory_note %}> **{{ i18n.t("report.memory_log", default="Memory log") }}**: {{ memory_note }}{% endif %}
+> **{{ i18n.t("report.total_evidence", default="Total Evidence") }}**: {{ evidence_chains|length }}
+
+---
+
+{{ section_header(i18n.t("report.executive_summary", default="Executive Summary")) }}
+
+{{ executive_narrative }}
+
+{% if cited_evidence %}
+**{{ i18n.t("report.cited_evidence", default="Key Cited Evidence") }}**: 
+{% for ev in cited_evidence %}`{{ ev }}` {% endfor %}
+
+{% endif %}
+
+{% if risk_reward_matrix %}
+{{ section_header(i18n.t("report.risk_reward", default="Risk-Reward Matrix"), 3) }}
+{{ render_table(
+  [i18n.t("report.scenario"), i18n.t("report.trigger"), i18n.t("report.outcome"), i18n.t("report.probability"), i18n.t("report.risk_reward_ratio")],
+  risk_reward_matrix | map(attribute='scenario') | zip(risk_reward_matrix | map(attribute='trigger'), risk_reward_matrix | map(attribute='outcome'), risk_reward_matrix | map(attribute='probability'), risk_reward_matrix | map(attribute='ratio')) | list,
+  ['', '', '', ':---:', ':---:']
+) }}
+
+{% endif %}
+
+{% if action_plan %}
+{{ section_header(i18n.t("report.action_plan", default="Action Plan"), 3) }}
+{{ render_table(
+  [i18n.t("report.timeframe"), i18n.t("report.action"), i18n.t("report.key_levels"), i18n.t("report.risk_control")],
+  action_plan | map(attribute='timeframe') | zip(action_plan | map(attribute='action'), action_plan | map(attribute='levels'), action_plan | map(attribute='risk')) | list
+) }}
+
 {% endif %}
 
 ---
 
-## {{ i18n.report.analyst_views }}
+{{ section_header(i18n.t("report.analyst_views.title", default="Analyst Views")) }}
 
-{% for out in analyst_outputs %}
-### {{ out.role_id | title }}
+{% for analyst in analyst_views %}
+{{ section_header(analyst.role, 3) }}
 
-{{ out.narrative }}
+{{ analyst.narrative }}
 
-{% if out.fields %}
-**{{ i18n.report.structured_metrics }}**:
+{% if analyst.fields %}
+**{{ i18n.t("report.structured_metrics", default="Structured Metrics") }}**:
+
+{% if analyst.render_hint == 'technical_indicators' %}
+{{ render_kv_table(analyst.fields.technical_indicators | default({}), i18n.t("report.indicator"), i18n.t("report.values")) }}
+{% elif analyst.render_hint == 'financial_ratios' %}
+{{ render_kv_table(analyst.fields.financial_ratios | default({}), i18n.t("report.metric"), i18n.t("report.value")) }}
+{% elif analyst.render_hint == 'core_signals' %}
+{{ render_kv_table(analyst.fields.core_signals | default({}), i18n.t("report.signal"), i18n.t("report.value")) }}
+{% else %}
 ```json
-{{ out.fields | tojson_unicode }}
+{{ analyst.fields | tojson(indent=2) }}
 ```
 {% endif %}
+
+{% endif %}
+
+{% if analyst.cited_evidence %}
+*{{ i18n.t("report.cited_evidence") }}: {% for ev in analyst.cited_evidence %}`{{ ev }}`{% if not loop.last %}, {% endif %}{% endfor %}*
+{% endif %}
+
+---
+
 {% endfor %}
 
 ---
 
-## {{ i18n.report.evidence_appendix }}
+{{ section_header(i18n.t("report.sections.research_team", default="Research Team Decision")) }}
 
-| {{ i18n.report.evidence_id }} | {{ i18n.report.evidence_type }} | {{ i18n.report.data_source }} | {{ i18n.report.summary }} |
-| :--- | :--- | :--- | :--- |
-{% for ev in evidence_items %}
-| `{{ ev.evidence_id }}` | {{ ev.evidence_type }} | {{ ev.provider }} | {{ ev.summary }} |
+{{ research_section.narrative if research_section else 'N/A' }}
+
+{% if research_section and research_section.fields %}
+**{{ i18n.t("report.structured_metrics") }}**:
+```json
+{{ research_section.fields | tojson(indent=2) }}
+```
+{% endif %}
+
+---
+
+{{ section_header(i18n.t("report.sections.trading_team", default="Trading Team Plan")) }}
+
+{{ trading_section.narrative if trading_section else 'N/A' }}
+
+{% if trading_section and trading_section.fields %}
+**{{ i18n.t("report.action_plan") }}**:
+{{ render_kv_table(trading_section.fields.action_plan | default({}), i18n.t("report.timeframe"), i18n.t("report.action")) }}
+{% endif %}
+
+---
+
+{{ section_header(i18n.t("report.sections.risk_team", default="Risk Management Team Decision")) }}
+
+{{ risk_section.narrative if risk_section else 'N/A' }}
+
+{% if risk_section and risk_section.fields %}
+**{{ i18n.t("report.risk_factors") }}**:
+{{ render_kv_table(risk_section.fields.risks | default({}), i18n.t("report.risk"), i18n.t("report.mitigation")) }}
+{% endif %}
+
+---
+
+{{ section_header(i18n.t("report.evidence_appendix", default="Evidence Appendix")) }}
+
+{% if evidence_chains %}
+{{ render_table(
+  [i18n.t("report.evidence_id"), i18n.t("report.evidence_type"), i18n.t("report.data_source"), i18n.t("report.summary"), i18n.t("report.processing_level"), i18n.t("report.quality_scores")],
+  evidence_chains | map(attribute='evidence_id') | zip(evidence_chains | map(attribute='evidence_type'), evidence_chains | map(attribute='provider'), evidence_chains | map(attribute='summary'), evidence_chains | map(attribute='processing_level'), evidence_chains | map(attribute='quality_scores') | map('tojson')) | list
+) }}
+
+{% endif %}
+
+---
+
+{{ section_header(i18n.t("report.evidence_chain", default="Evidence Chain / Genealogy")) }}
+
+{% for ev in evidence_chains %}
+**`{{ ev.evidence_id }}`** ({{ ev.evidence_type }}, {{ ev.provider }})
+{{ ev.summary }}
+
+{{ lineage_chain(ev) }}
+{{ processing_chain(ev) }}
+{{ quality_scores(ev) }}
+
+---
+
 {% endfor %}
 
 ---
-*{{ i18n.report.footer }}*
+
+*{{ i18n.t("report.footer", default="Generated by TradingAgents. Conclusions are based on the evidence listed in this report.") }}*

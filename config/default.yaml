@@ -1,73 +1,129 @@
-id: default
-version: "0.1"
-target_profile: equity
-evidence_schema: v1
-prompt_persistence: full
-# 资源池：定义所有的角色细节
+id: "full_migration_v1"
+version: "1.0"
+target_profile: "AAPL"
 roles:
+  # === Core Analysts (Parallel) ===
   market_analyst:
-    role_id: market_analyst
-    display_name_key: role.market
-    consumes: [market_data]
-    produces: [market_outlook]
-    template: analysts/market.j2
-    model_tier: quick
+    role_id: "market_analyst"
+    display_name_key: "report.analyst_views.market"
+    consumes: ["market_raw_kline", "market_verified_snapshot", "market_indicators"]
+    produces: ["market_outlook"]
+    template: "analysts/market.j2"
+    model_tier: "deep"
     args: {}
-  fundamentals_analyst:
-    role_id: fundamentals_analyst
-    display_name_key: role.fundamentals
-    consumes: [fundamentals_data]
-    produces: [fundamental_score]
-    template: analysts/fundamentals.j2
-    model_tier: quick
+  
+  sentiment_analyst:
+    role_id: "sentiment_analyst"
+    display_name_key: "report.analyst_views.sentiment"
+    consumes: ["news_raw", "sentiment_social_stocktwits", "sentiment_social_reddit"]
+    produces: ["sentiment_report"]
+    template: "analysts/sentiment.j2"
+    model_tier: "quick"
     args: {}
+  
   news_analyst:
-    role_id: news_analyst
-    display_name_key: role.news
-    consumes: [news_data]
-    produces: [news_impact]
-    template: analysts/news.j2
-    model_tier: quick
+    role_id: "news_analyst"
+    display_name_key: "report.analyst_views.news"
+    consumes: ["news_raw", "global_news_raw", "macro_raw"]
+    produces: ["news_impact"]
+    template: "analysts/news.j2"
+    model_tier: "quick"
     args: {}
-  bull_researcher:
-    role_id: bull_researcher
-    display_name_key: role.bull
-    consumes: [market_data, fundamentals_data, news_data]
-    produces: [researcher_thesis]
-    template: analysts/bull.j2
-    model_tier: deep
+  
+  fundamentals_analyst:
+    role_id: "fundamentals_analyst"
+    display_name_key: "report.analyst_views.fundamentals"
+    consumes: ["fundamentals_raw", "financials_raw", "insider_raw"]
+    produces: ["fundamental_score"]
+    template: "analysts/fundamentals.j2"
+    model_tier: "deep"
     args: {}
-  bear_researcher:
-    role_id: bear_researcher
-    display_name_key: role.bear
-    consumes: [market_data, fundamentals_data, news_data]
-    produces: [researcher_thesis]
-    template: analysts/bear.j2
-    model_tier: deep
+  
+  # === Research Layer (Sequential - internal multi-round) ===
+  research_manager:
+    role_id: "research_manager"
+    display_name_key: "report.research.manager"
+    consumes: ["market_outlook", "sentiment_report", "news_impact", "fundamental_score"]
+    produces: ["investment_plan"]
+    template: "research/manager.j2"
+    model_tier: "deep"
     args: {}
+  
+  # === Trading Layer ===
+  trader:
+    role_id: "trader"
+    display_name_key: "report.trading.trader"
+    consumes: ["investment_plan", "market_outlook"]
+    produces: ["trader_plan"]
+    template: "trading/trader.j2"
+    model_tier: "quick"
+    args: {}
+  
+  # === Risk Layer (Sequential - internal multi-round) ===
+  risk_manager:
+    role_id: "risk_manager"
+    display_name_key: "report.risk.manager"
+    consumes: ["trader_plan", "market_outlook", "sentiment_report", "news_impact", "fundamental_score"]
+    produces: ["risk_assessment"]
+    template: "risk/manager.j2"
+    model_tier: "deep"
+    args: {}
+  
+  # === Final Decision (Project Manager) ===
   project_manager:
-    role_id: project_manager
-    display_name_key: role.pm
-    consumes: [market_outlook, fundamental_score, news_impact, researcher_thesis]
-    produces: [final_report]
-    template: project_manager.j2
-    model_tier: deep
+    role_id: "project_manager"
+    display_name_key: "report.portfolio.manager"
+    consumes: []  # 空 = 默认消费所有 analyst 的输出
+    produces: ["final_report"]
+    template: "project_manager.j2"
+    model_tier: "deep"
     args: {}
 
-# 编排名单：默认跑满配
 team:
-  analysts: [market_analyst, fundamentals_analyst, news_analyst, bull_researcher, bear_researcher]
-  project_manager: project_manager
+  analysts: [
+    "market_analyst", "sentiment_analyst", "news_analyst", "fundamentals_analyst",
+    "research_manager", "trader", "risk_manager"
+  ]
+  project_manager: "project_manager"
 
-# 数据源配置
 data:
-  required: [market_data, fundamentals_data, news_data]
   provider_chain:
-    market_data: [yfinance]
-    fundamentals_data: [yfinance]
-    news_data: [yfinance]
+    market_raw_kline: ["yfinance_kline"]
+    market_verified_snapshot: ["yfinance_snapshot"]
+    market_indicators: ["yfinance_kline"]
+    news_raw: ["yfinance_news"]
+    global_news_raw: ["yfinance_news"]
+    macro_raw: ["fred_macro"]
+    fundamentals_raw: ["yfinance_fundamentals"]
+    financials_raw: ["yfinance_fundamentals"]
+    insider_raw: ["yfinance_fundamentals"]
+    sentiment_social_stocktwits: ["stocktwits_social"]
+    sentiment_social_reddit: ["reddit_social"]
+  default_processing_level: "raw"
   provider_args:
-    yfinance: {}
+    yfinance_kline:
+      indicator: ["rsi", "macd", "close_50_sma", "close_200_sma", "close_10_ema", "boll", "boll_ub", "boll_lb", "atr", "vwma", "mfi"]
+      look_back_days: 30
+    yfinance_news:
+      article_limit: 20
+      global_lookback_days: 7
+      global_article_limit: 20
+    yfinance_fundamentals:
+      freq: "quarterly"
+    fred_macro:
+      look_back_days: 365
+      indicator:
+        - "cpi"
+        - "unemployment"
+        - "fed_funds_rate"
+        - "10y_treasury"
+        - "yield_curve"
+        - "vix"
+        - "dollar_index"
+    stocktwits_social:
+      limit: 30
+    reddit_social:
+      limit_per_sub: 5
 
 models:
   provider: openai
@@ -75,7 +131,3 @@ models:
   deep: {temperature: 0.2}
   provider_args:
     openai: {}
-logging:
-  level: INFO
-output:
-  lang: zh-CN

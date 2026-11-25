@@ -1,4 +1,14 @@
-from .base import AnalystRole, ProjectManager, RoleOutput
-from .registry import role_registry
+"""Migration plugin roles package."""
 
-__all__ = ["AnalystRole", "ProjectManager", "RoleOutput", "role_registry"]
+from .market_analyst import MarketAnalyst
+from .news_analyst import NewsAnalyst
+from .fundamentals_analyst import FundamentalsAnalyst
+from .sentiment_analyst import SentimentAnalyst
+from .research_manager import ResearchManager
+from .trader import Trader
+from .risk_manager import RiskManager
+
+__all__ = [
+    "MarketAnalyst", "NewsAnalyst", "FundamentalsAnalyst", "SentimentAnalyst",
+    "ResearchManager", "Trader", "RiskManager"
+]
