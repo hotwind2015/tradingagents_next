@@ -75,13 +75,18 @@ pip install -e .
 tradingagents run --ticker AAPL
 ```
 
-默认配置位于 `config/default.yaml`，使用 `yfinance` 获取行情、基本面和新闻数据，通过 OpenAI 兼容的 LLM 提供者生成分析。运行前，在项目根目录创建 `.env` 并设置模型 API 信息：
+默认配置位于 `config/default.yaml`，使用 `yfinance` 获取行情、基本面和新闻数据，使用 `FRED` 获取宏观经济指标，通过 OpenAI 兼容的 LLM 提供者生成分析。运行前，在项目根目录创建 `.env` 并设置 API 密钥：
 
 ```dotenv
+# LLM（必需）
 TRADINGAGENTS_LLM_API_KEY=your-api-key
 TRADINGAGENTS_LLM_MODEL=gpt-4o-mini
 # 如使用兼容服务，可按服务商要求设置：
 # TRADINGAGENTS_LLM_BASE_URL=https://your-provider.example/v1
+
+# FRED 宏观经济数据（完整分析必需）
+TRADINGAGENTS_FRED_API_KEY=your-fred-api-key
+# 免费申请：https://fred.stlouisfed.org/docs/api/api_key.html
 ```
 
 `TRADINGAGENTS_LLM_BASE_URL` 为可选项。请勿将包含真实密钥的 `.env` 文件提交到版本库。

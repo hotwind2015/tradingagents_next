@@ -75,13 +75,18 @@ Using a virtual environment is recommended to isolate project dependencies.
 tradingagents run --ticker AAPL
 ```
 
-The default configuration is `config/default.yaml`. It uses `yfinance` for market, fundamental, and news data, and an OpenAI-compatible LLM provider for analysis. Before running, create a `.env` file in the project root and configure your model API:
+The default configuration is `config/default.yaml`. It uses `yfinance` for market, fundamental, and news data, `FRED` for macroeconomic indicators, and an OpenAI-compatible LLM provider for analysis. Before running, create a `.env` file in the project root and configure your API keys:
 
 ```dotenv
+# LLM (required)
 TRADINGAGENTS_LLM_API_KEY=your-api-key
 TRADINGAGENTS_LLM_MODEL=gpt-4o-mini
 # For a compatible service, configure this as required by your provider:
 # TRADINGAGENTS_LLM_BASE_URL=https://your-provider.example/v1
+
+# FRED macroeconomic data (required for full analysis)
+TRADINGAGENTS_FRED_API_KEY=your-fred-api-key
+# Get a free key at https://fred.stlouisfed.org/docs/api/api_key.html
 ```
 
 `TRADINGAGENTS_LLM_BASE_URL` is optional. Do not commit a `.env` file containing real credentials.
