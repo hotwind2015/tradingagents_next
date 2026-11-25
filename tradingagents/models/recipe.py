@@ -24,7 +24,6 @@ class TeamSpec(BaseModel):
 
 
 class DataSpec(BaseModel):
-    required: list[str] = Field(default_factory=list)
     provider_chain: dict[str, list[str]] = Field(default_factory=dict)
     fallback: list[str] = Field(default_factory=list)
     provider_args: dict[str, dict[str, Any]] = Field(default_factory=dict)

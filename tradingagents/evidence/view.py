@@ -35,9 +35,13 @@ class EvidenceView:
             return None
         raw_path = self._raw_dir / f"{evidence_id}.json"
         if raw_path.exists():
-            data = json.loads(raw_path.read_text(encoding="utf-8"))
-            self._raw_cache[evidence_id] = data
-            return data
+            try:
+                data = json.loads(raw_path.read_text(encoding="utf-8"))
+                self._raw_cache[evidence_id] = data
+                return data
+            except json.JSONDecodeError:
+                # 原始文件损坏，返回 None 而非抛出异常
+                return None
         return None
     
     def get_all_raw(self, evidence_type: str) -> list[dict[str, Any]]:

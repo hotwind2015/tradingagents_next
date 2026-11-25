@@ -1,5 +1,8 @@
 import json
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def extract_json(raw_text: str) -> dict | None:

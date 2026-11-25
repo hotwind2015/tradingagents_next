@@ -163,10 +163,10 @@ class Orchestrator:
         else:
             final_plugin_dirs = []  # <--- 默认空列表，白名单模式
 
-        # 2. 收集模板搜索路径
-        template_search_paths = [self.template_dir] # 首先是主框架的 templates/
+        # 2. 收集模板搜索路径 - 插件模板优先（与 report renderer 保持一致）
+        template_search_paths = []
         
-        # 假设用户把模板放在了 plugin_dir/templates/ 下
+        # 先添加插件模板目录（优先级高）
         for p_dir in final_plugin_dirs:
             custom_tpl_dir = Path(p_dir) / "templates"
             if custom_tpl_dir.exists():
@@ -174,6 +174,9 @@ class Orchestrator:
                     i18n.t("run.plugin_template_added", template_dir=custom_tpl_dir)
                 )
                 template_search_paths.append(custom_tpl_dir)
+        
+        # 最后添加主框架模板目录（兜底）
+        template_search_paths.append(self.template_dir)
 
         # 3. 实例化渲染器
         renderer = PromptRenderer(template_search_paths)
@@ -232,9 +235,18 @@ class Orchestrator:
             # 透传 provider_args 给 DataRouter
             router = DataRouter(plugin_manager, store, self.recipe.data.provider_args)
             
+            # Collect all evidence types produced by roles in the team
+            produced_by_roles = set()
+            all_roles = actual_analysts + [actual_pm]
+            for role in all_roles:
+                produced_by_roles.update(role.produces)
+            
+            # Only fetch evidence types that are NOT produced by any role (i.e., provider evidence types)
             required_evidence = set()
             for role in actual_analysts:
-                required_evidence.update(role.consumes)
+                for t in role.consumes:
+                    if t not in produced_by_roles:
+                        required_evidence.add(t)
                 
             # 读取处理层级配置（默认 RAW）
             processing_level = getattr(self.recipe.data, 'default_processing_level', 'raw')
@@ -261,6 +273,17 @@ class Orchestrator:
         produced_map: dict[str, list[str]] = {}  
         
         all_roles = actual_analysts + [actual_pm]
+        
+        # 如果 project_manager 的 consumes 为空，默认消费所有 analyst 的输出
+        pm_role = next((r for r in all_roles if r.role_id == self.recipe.team.project_manager), None)
+        if pm_role and not pm_role.consumes:
+            # 默认消费所有 analyst 的 produces
+            all_analyst_produces = set()
+            for analyst in actual_analysts:
+                all_analyst_produces.update(analyst.produces)
+            pm_role.consumes = list(all_analyst_produces)
+            logger.info(f"ProjectManager 默认消费所有分析师输出: {pm_role.consumes}")
+        
         for role in all_roles:
             nodes.append(NodeIR(id=role.role_id, kind="project_manager" if role.role_id == self.recipe.team.project_manager else "analyst"))
             for out in role.produces:

@@ -52,8 +52,17 @@ class EvidenceStore:
         prev_hash = ""
         if self.chain_path.exists():
             lines = self.chain_path.read_text(encoding="utf-8").strip().splitlines()
-            if lines:
-                prev_hash = json.loads(lines[-1])["self_hash"]
+            # 从后向前找第一个有效的 JSON 行
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    prev_hash = json.loads(line)["self_hash"]
+                    break
+                except json.JSONDecodeError:
+                    # 跳过损坏的行
+                    continue
 
         record = {"kind": kind, "ref": ref, "prev_hash": prev_hash, "self_hash": self_hash}
         with self.chain_path.open("a", encoding="utf-8") as f:
@@ -64,8 +73,14 @@ class EvidenceStore:
             return True
         lines = self.chain_path.read_text(encoding="utf-8").strip().splitlines()
         prev = ""
-        for line in lines:
-            rec = json.loads(line)
+        for line_num, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise IntegrityError(f"invalid JSON at line {line_num}: {e}")
             if rec["prev_hash"] != prev:
                 raise IntegrityError(f"hash chain broken at {rec['ref']}")
             prev = rec["self_hash"]

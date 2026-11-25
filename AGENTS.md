@@ -229,4 +229,60 @@ Closes #123
 
 ---
 
-> **更新规则**：修改架构模式、i18n 用法、目录结构时，**必须同步更新本文档**。
+## 8. Jinja2 模板规范
+
+### 反斜杠转义规则
+
+在 Jinja2 模板（`.j2` 文件）的**纯文本区域**（非 `{{ ... }}`/`{% ... %}` 表达式内）出现字面量反斜杠时，**必须写双反斜杠 `\\`**：
+
+| 场景 | ❌ 错误写法 | ✅ 正确写法 | 说明 |
+|------|-------------|-------------|------|
+| 模板文本中的换行符提示 | `with \n for newlines` | `with \\n for newlines` | 单 `\` 会被词法分析器当成转义字符报错 |
+| JSON 示例字符串中的换行 | `"line1\nline2"` | `"line1\\nline2"` | 模板源码里写 `\\n`，渲染后输出给 LLM 的是字面量 `\n` |
+| Windows 路径等其他反斜杠 | `C:\Users` | `C:\\Users` | 同理 |
+
+**报错示例**：
+```
+TemplateSyntaxError: unexpected char '\\' at 2232
+```
+这是 Jinja2 词法分析器（`env.parse(source)`）在解析模板源码时，遇到未转义的单反斜杠导致的。
+
+### 模板搜索优先级
+
+- **插件模板目录优先**（`--plugin-dir` 下的 `templates/`）
+- **主框架模板目录兜底** (`templates/`)
+
+这与 `report/renderer.py` 的行为保持一致，确保用户自定义模板生效。
+
+### Jinja2 语法禁忌（极易踩坑）
+
+| ❌ 禁止写法 | 原因 | ✅ 正确替代 | 示例位置 |
+|------------|------|------------|----------|
+| `{{ [expr for x in list] }}` | **Python 列表推导式**不被 Jinja2 表达式支持 | `{% for x in list %}{{ expr }}{% if not loop.last %}, {% endif %}{% endfor %}` 或自定义 filter | `report.j2:6` |
+| `{{ dict_comp }}` | Python dict/set 推导式同理不支持 | 改用 for 循环或 filter | - |
+| `{% if x in dict %}` | Jinja2 `in` 只能测序列/映射键，不能测值 | 用 `dict.get(x)` 或自定义 test | - |
+
+> **原则**：模板表达式 `{{ ... }}` 只能用 Jinja2 原生语法（变量、filter、test、简单运算），**任何 Python 专有语法（推导式、lambda、walrus `:=`、match-case 等）全部禁止**。
+
+### 自定义 Filter 注册规范
+
+`report/renderer.py` 中注册 filter 时：
+
+| 规则 | 说明 | 示例 |
+|------|------|------|
+| **覆盖内置同名 filter** | 模板若用 `map('tojson')`，需 `env.filters['tojson'] = ...` | `tojson_safe` 替代内置 `tojson` |
+| **透传 `**kwargs`** | 模板可能传 `indent=2` 等参数 | `def tojson_safe(obj, **kwargs): return json.dumps(obj, **kwargs)` |
+| **异常兜底返回字符串** | 防止序列化失败导致模板渲染崩溃 | `except Exception: return str(obj)` |
+| **补充缺失内置 filter** | Jinja2 无 `zip`、`groupby` 等，需自行注册 | `env.filters['zip'] = lambda *it: list(zip(*it))` |
+
+### i18n Key 管理规范
+
+| 规则 | ❌ 错误示例 | ✅ 正确示例 |
+|------|-------------|-------------|
+| **同一层级 key 不可重复** | `report.analyst_views` 出现两次（字符串 + dict），后者覆盖前者导致类型错 | 扁平化所有 key，嵌套结构改用 `report.analyst_views.mkt` 等子 key |
+| **所有叶子值必须为字符串** | `analyst_views: {mkt: "市场"}` 导致 `i18n.t("report.analyst_views")` 取到 dict 报错 | 叶子节点全为字符串，嵌套只用于分组，不直接取值 |
+| **模板用到的 key 必须双语言同步** | zh-CN 有 `action_plan`，en-US 没有 | 新增 key 时同步更新 `zh-CN.yaml` 和 `en-US.yaml` |
+
+---
+
+> **更新规则**：修改架构模式、i18n 用法、目录结构、**模板规范**时，**必须同步更新本文档**。

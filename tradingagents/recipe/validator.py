@@ -20,7 +20,14 @@ def validate_recipe(
     available_evidence_types: set[str] | None = None,
 ) -> ValidationResult:
     result = ValidationResult()
-    provided_by_data = set(recipe.data.required)
+    # Use provider_chain keys as the declared evidence types from providers
+    provided_by_data = set(recipe.data.provider_chain.keys())
+    # Also include all role produces as available evidence types
+    all_role_produces = set()
+    for role in recipe.roles.values():
+        all_role_produces.update(role.produces)
+    # Combined available evidence types
+    all_available = provided_by_data | all_role_produces
 
     if available_evidence_types is not None:
         for t in sorted(provided_by_data - available_evidence_types):
@@ -35,10 +42,10 @@ def validate_recipe(
             continue
         role = recipe.roles[role_id]
         for t in role.consumes:
-            if t not in provided_by_data:
-                result.errors.append(f"role {role_id!r} consumes {t!r} but data.required does not include it")
+            if t not in all_available:
+                result.errors.append(f"role {role_id!r} consumes {t!r} but no provider or upstream role produces it")
         produced.update(role.produces)
-
+    
     # 2. 校验项目经理
     pm_id = recipe.team.project_manager
     if pm_id not in recipe.roles:
