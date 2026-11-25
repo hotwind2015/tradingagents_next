@@ -1,0 +1,38 @@
+id: "fund_only_test"
+version: "1.0"
+target_profile: "AAPL"
+roles:
+  fundamentals_analyst:
+    role_id: "fundamentals_analyst"
+    display_name_key: "report.analyst_views.fundamentals"
+    consumes: ["fundamentals_raw", "financials_raw", "insider_raw"]
+    produces: ["fundamental_score"]
+    template: "analysts/fundamentals.j2"
+    model_tier: "deep"
+    args: {}
+  project_manager:
+    role_id: "project_manager"
+    display_name_key: "report.analyst_views.pm"
+    consumes: ["fundamental_score"]
+    produces: ["final_report"]
+    template: "project_manager.j2"
+    model_tier: "deep"
+    args: {}
+team:
+  analysts: ["fundamentals_analyst"]
+  project_manager: "project_manager"
+data:
+  provider_chain:
+    fundamentals_raw: ["yfinance_fundamentals"]
+    financials_raw: ["yfinance_fundamentals"]
+    insider_raw: ["yfinance_fundamentals"]
+  default_processing_level: "raw"
+  provider_args:
+    yfinance_fundamentals:
+      freq: "quarterly"
+models:
+  provider: openai
+  quick: {temperature: 0.1}
+  deep: {temperature: 0.2}
+  provider_args:
+    openai: {}

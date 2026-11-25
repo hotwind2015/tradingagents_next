@@ -1,0 +1,81 @@
+id: default
+version: "0.1"
+target_profile: equity
+evidence_schema: v1
+prompt_persistence: full
+# 资源池：定义所有的角色细节
+roles:
+  market_analyst:
+    role_id: market_analyst
+    display_name_key: role.market
+    consumes: [market_data]
+    produces: [market_outlook]
+    template: analysts/market.j2
+    model_tier: quick
+    args: {}
+  fundamentals_analyst:
+    role_id: fundamentals_analyst
+    display_name_key: role.fundamentals
+    consumes: [fundamentals_data]
+    produces: [fundamental_score]
+    template: analysts/fundamentals.j2
+    model_tier: quick
+    args: {}
+  news_analyst:
+    role_id: news_analyst
+    display_name_key: role.news
+    consumes: [news_data]
+    produces: [news_impact]
+    template: analysts/news.j2
+    model_tier: quick
+    args: {}
+  bull_researcher:
+    role_id: bull_researcher
+    display_name_key: role.bull
+    consumes: [market_data, fundamentals_data, news_data]
+    produces: [researcher_thesis]
+    template: analysts/bull.j2
+    model_tier: deep
+    args: {}
+  bear_researcher:
+    role_id: bear_researcher
+    display_name_key: role.bear
+    consumes: [market_data, fundamentals_data, news_data]
+    produces: [researcher_thesis]
+    template: analysts/bear.j2
+    model_tier: deep
+    args: {}
+  project_manager:
+    role_id: project_manager
+    display_name_key: role.pm
+    consumes: [market_outlook, fundamental_score, news_impact, researcher_thesis]
+    produces: [final_report]
+    template: project_manager.j2
+    model_tier: deep
+    args: {}
+
+# 编排名单：默认跑满配
+team:
+  analysts: [market_analyst, fundamentals_analyst, news_analyst, bull_researcher, bear_researcher]
+  project_manager: project_manager
+
+# 数据源配置
+data:
+  required: [market_data, fundamentals_data, news_data]
+  provider_chain:
+    market_data: [yfinance]
+    fundamentals_data: [yfinance]
+    news_data: [yfinance]
+  provider_args:
+    yfinance: {}
+
+models:
+  provider: openai
+  quick: {temperature: 0.1}
+  deep: {temperature: 0.2}
+  provider_args:
+    openai: {}
+logging:
+  level: INFO
+output:
+  lang: zh-CN

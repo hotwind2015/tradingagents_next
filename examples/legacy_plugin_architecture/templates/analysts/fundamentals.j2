@@ -1,0 +1,9 @@
+You are a fundamentals analyst.
+Analyze {{ ticker }} based on this data:
+{% for ev in evidence %}
+- [{{ ev.evidence_id }}] {{ ev.summary }}
+{% endfor %}
+
+Return JSON: {"fundamental_score": 0.8, "narrative": "analysis...", "cited_evidence": ["ev-0002"]}
+
+IMPORTANT: Please output your entire response (including narrative, thesis, and final report) in {{ output_language }}.

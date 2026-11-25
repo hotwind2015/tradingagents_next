@@ -1,0 +1,56 @@
+id: "news_only_test"
+version: "1.0"
+target_profile: "AAPL"
+roles:
+  news_analyst:
+    role_id: "news_analyst"
+    display_name_key: "report.analyst_views.news"
+    consumes: ["news_raw", "global_news_raw", "macro_raw"]
+    produces: ["news_impact"]
+    template: "analysts/news.j2"
+    model_tier: "quick"
+    args: {}
+  project_manager:
+    role_id: "project_manager"
+    display_name_key: "report.analyst_views.pm"
+    consumes: ["news_impact"]
+    produces: ["final_report"]
+    template: "project_manager.j2"
+    model_tier: "deep"
+    args: {}
+team:
+  analysts: ["news_analyst"]
+  project_manager: "project_manager"
+data:
+  provider_chain:
+    news_raw: ["yfinance_news"]
+    global_news_raw: ["yfinance_news"]
+    macro_raw: ["fred_macro"]
+  default_processing_level: "raw"
+  provider_args:
+    yfinance_news:
+      article_limit: 20
+      global_lookback_days: 7
+      global_article_limit: 20
+      global_queries:
+        - "stock market"
+        - "federal reserve"
+        - "inflation"
+        - "earnings"
+        - "economy"
+    fred_macro:
+      look_back_days: 365
+      indicator:
+        - "cpi"
+        - "unemployment"
+        - "fed_funds_rate"
+        - "10y_treasury"
+        - "yield_curve"
+        - "vix"
+        - "dollar_index"
+models:
+  provider: openai
+  quick: {temperature: 0.1}
+  deep: {temperature: 0.2}
+  provider_args:
+    openai: {}

@@ -1,0 +1,44 @@
+id: "sentiment_only_test"
+version: "1.0"
+target_profile: "AAPL"
+roles:
+  sentiment_analyst:
+    role_id: "sentiment_analyst"
+    display_name_key: "report.analyst_views.sentiment"
+    consumes: ["news_raw", "sentiment_social_stocktwits", "sentiment_social_reddit"]
+    produces: ["sentiment_report"]
+    template: "analysts/sentiment.j2"
+    model_tier: "quick"
+    args: {}
+  project_manager:
+    role_id: "project_manager"
+    display_name_key: "report.analyst_views.pm"
+    consumes: ["sentiment_report"]
+    produces: ["final_report"]
+    template: "project_manager.j2"
+    model_tier: "deep"
+    args: {}
+team:
+  analysts: ["sentiment_analyst"]
+  project_manager: "project_manager"
+data:
+  provider_chain:
+    news_raw: ["yfinance_news"]
+    sentiment_social_stocktwits: ["stocktwits_social"]
+    sentiment_social_reddit: ["reddit_social"]
+  default_processing_level: "raw"
+  provider_args:
+    yfinance_news:
+      article_limit: 20
+      global_lookback_days: 7
+      global_article_limit: 20
+    stocktwits_social:
+      limit: 30
+    reddit_social:
+      limit_per_sub: 5
+models:
+  provider: openai
+  quick: {temperature: 0.1}
+  deep: {temperature: 0.2}
+  provider_args:
+    openai: {}

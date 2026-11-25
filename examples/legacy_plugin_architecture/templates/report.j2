@@ -1,0 +1,42 @@
+# {{ i18n.report.title }} - {{ ticker }}
+
+> **{{ i18n.report.generated_at }}**: {{ run_time }}
+> **{{ i18n.report.run_id }}**: {{ run_id }}
+
+## {{ i18n.report.executive_summary }}
+
+{{ final_report.narrative }}
+
+{% if final_report.cited_evidence %}
+**{{ i18n.report.cited_evidence }}**: {% for ev in final_report.cited_evidence %}`{{ ev }}` {% endfor %}
+{% endif %}
+
+---
+
+## {{ i18n.report.analyst_views }}
+
+{% for out in analyst_outputs %}
+### {{ out.role_id | title }}
+
+{{ out.narrative }}
+
+{% if out.fields %}
+**{{ i18n.report.structured_metrics }}**:
+```json
+{{ out.fields | tojson_unicode }}
+```
+{% endif %}
+{% endfor %}
+
+---
+
+## {{ i18n.report.evidence_appendix }}
+
+| {{ i18n.report.evidence_id }} | {{ i18n.report.evidence_type }} | {{ i18n.report.data_source }} | {{ i18n.report.summary }} |
+| :--- | :--- | :--- | :--- |
+{% for ev in evidence_items %}
+| `{{ ev.evidence_id }}` | {{ ev.evidence_type }} | {{ ev.provider }} | {{ ev.summary }} |
+{% endfor %}
+
+---
+*{{ i18n.report.footer }}*
