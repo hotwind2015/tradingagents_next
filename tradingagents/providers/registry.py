@@ -7,6 +7,14 @@ provider_registry = PluginRegistry("tradingagents.providers", attr="provider_id"
 
 
 def available_evidence_types() -> set[str]:
+    """Get all evidence types provided by registered providers.
+    
+    Automatically discovers plugins if registry is empty.
+    """
+    # Ensure plugins are discovered
+    if not provider_registry.ids():
+        provider_registry.discover()
+    
     types: set[str] = set()
     for pid in provider_registry.ids():
         provider = provider_registry.get(pid)

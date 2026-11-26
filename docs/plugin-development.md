@@ -404,3 +404,129 @@ examples/
 ---
 
 This convention ensures **mock tests are first-class citizens**, not afterthoughts, and prevents the "mock drift" problem where mocks become stale and give false confidence.
+
+## 11. Evidence Schema & Template Value Paths
+
+When a run executes, every piece of evidence fetched by data providers is saved as a JSON file under `runs/<run_id>/raw/ev-XXXX.json`. These files contain not only the raw payload but also auto-generated metadata that helps template authors discover the correct value access paths.
+
+### 11.1 Evidence JSON Structure
+
+Each `ev-XXXX.json` contains:
+
+| Field | Description |
+|-------|-------------|
+| `indicator`, `values`, ... | Provider-specific raw payload |
+| `_template_meta` | Auto-generated template guidance (see below) |
+| `_evidence_meta` | Complete evidence metadata (evidence_id, type, provider, summary, lineage, quality scores, etc.) |
+
+### 11.2 `_template_meta` — Template Author's Guide
+
+```json
+"_template_meta": {
+  "raw_payload_schema": {
+    "type": "object",
+    "jinja_path": "raw_payload",
+    "properties": {
+      "indicator": { "type": "string", "jinja_path": "raw_payload.indicator", "example": "rsi" },
+      "values": {
+        "type": "object",
+        "jinja_path": "raw_payload.values",
+        "properties": {
+          "2026-11-24": { "type": "string", "jinja_path": "raw_payload.values.2026-11-24", "example": "56.85" }
+        },
+        "keys": ["2026-11-25", "2026-11-24", ...],
+        "example": { "2026-11-25": "N/A", "2026-11-24": "56.85" }
+      },
+      "as_of_date": { "type": "string", "jinja_path": "raw_payload.as_of_date", "example": "2026-11-25" },
+      "look_back_days": { "type": "integer", "jinja_path": "raw_payload.look_back_days", "example": 30 }
+    }
+  },
+  "jinja_paths": [
+    "raw_payload.indicator",
+    "raw_payload.values",
+    "raw_payload.values.2026-11-24",
+    "raw_payload.as_of_date",
+    "raw_payload.look_back_days",
+    "raw_payload.description"
+  ],
+  "top_level_keys": ["indicator", "values", "as_of_date", "look_back_days", "description"]
+}
+```
+
+#### Key Fields
+
+| Field | Purpose |
+|-------|---------|
+| `raw_payload_schema` | Recursive JSON Schema of the entire payload with `jinja_path` for every field |
+| `jinja_paths` | Flat list of all leaf-level access paths — **copy-paste ready for templates** |
+| `top_level_keys` | Quick overview of root-level keys |
+
+### 11.3 How to Use in Templates
+
+1. **Run once** to generate evidence files:
+   ```bash
+   tradingagents run --ticker AAPL --config config/default.yaml --lang en-US
+   ```
+
+2. **Open any `runs/<run_id>/raw/ev-XXXX.json`** and look at `_template_meta.jinja_paths`
+
+3. **Copy the path** and use it in your Jinja2 template with `ev.raw_payload.` prefix:
+   ```jinja2
+   {% for ev in evidence %}
+   - [{{ ev.evidence_id }}] {{ ev.summary }}
+   {% if ev.raw_payload.values is mapping %}
+     **Key Values (last 5 days):**
+     {% for k, v in (ev.raw_payload.values.items() | list)[-5:] %}
+     - {{ k }}: {{ v }}
+     {% endfor %}
+   {% endif %}
+   {% endfor %}
+   ```
+
+   > **Important**: Use bracket notation `ev.raw_payload["values"]` instead of dot notation `ev.raw_payload.values` when the key might conflict with Python dict methods (like `values()`, `keys()`, `items()`).
+
+### 11.4 `_evidence_meta` — Complete Evidence Context
+
+```json
+"_evidence_meta": {
+  "evidence_id": "ev-0001",
+  "evidence_type": "market_indicators",
+  "provider": "yfinance_kline",
+  "method": "stockstats",
+  "summary": "rsi values from 2026-10-26 to 2026-11-25",
+  "fetched_at": "2026-11-25T14:00:38.853340+00:00",
+  "fallback_hit": false,
+  "metadata": {
+    "source_provider": "yfinance_kline",
+    "source_method": "stockstats",
+    "processing_level": "raw",
+    "processing_chain": ["fetch"],
+    "quality_scores": { "completeness": 1.0, "freshness": 1.0 }
+  },
+  "lineage": []
+}
+```
+
+Use this for debugging, audit trails, or displaying provenance in reports.
+
+### 11.5 Provider Best Practice
+
+When implementing a new `DataProvider`, ensure `RawEvidence.raw_payload` is a **JSON-serializable dict**. The schema inference works automatically for any structure (objects, arrays, nested). No code changes needed in the store — it's fully generic.
+
+If your provider has special fields that template authors should know about, consider adding a `"_template_hint"` key in the raw payload (optional, merged into `_template_meta`):
+```python
+RawEvidence(
+    ...
+    raw_payload={
+        "my_custom_field": [...],
+        "_template_hint": {
+            "category": "technical",
+            "description": "Custom volatility metric, iterate with ev.raw_payload.my_custom_field"
+        }
+    }
+)
+```
+
+---
+
+This convention ensures **template authors never need to read provider code** — just run once, open the evidence JSON, copy `jinja_paths`, and paste into templates.

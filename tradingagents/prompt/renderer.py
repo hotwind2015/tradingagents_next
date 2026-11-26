@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+import json
 
 from jinja2 import Environment, FileSystemLoader, meta
 
@@ -15,15 +17,23 @@ class PromptRenderer:
         if isinstance(template_dirs, Path):
             template_dirs = [template_dirs]
         
-        # 过滤掉不存在的目录，并把 Path 转换为 str 列表
         search_paths = [str(d) for d in template_dirs if d.exists()]
         
-        # Jinja2 会按列表顺序去查找模板，前面的找不到才会找后面的
         self.env = Environment(
             loader=FileSystemLoader(search_paths),
             autoescape=False,
             keep_trailing_newline=True,
         )
+        
+        # 注入当前日期
+        self.env.globals['current_date'] = datetime.now().strftime("%Y-%m-%d")
+        self.env.globals['current_datetime'] = datetime.now()
+        
+        # 注册支持 ensure_ascii 的 tojson filter
+        def tojson_filter(value, ensure_ascii=True):
+            return json.dumps(value, ensure_ascii=ensure_ascii)
+        
+        self.env.filters['tojson'] = tojson_filter
 
     def validate_variables(self, template_name: str, allowed_vars: set[str]) -> None:
         source = self.env.loader.get_source(self.env, template_name)[0]

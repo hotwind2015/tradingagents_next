@@ -285,4 +285,60 @@ TemplateSyntaxError: unexpected char '\\' at 2232
 
 ---
 
-> **更新规则**：修改架构模式、i18n 用法、目录结构、**模板规范**时，**必须同步更新本文档**。
+## 9. Evidence Schema 与模板取值路径规范
+
+### 9.1 证据文件结构
+
+运行结束后，每条证据保存为 `runs/<run_id>/raw/ev-XXXX.json`，包含：
+
+| 字段 | 说明 |
+|------|------|
+| 业务字段 | Provider 返回的原始 `raw_payload` |
+| `_template_meta` | 自动生成的模板编写指引（Schema + jinja_paths） |
+| `_evidence_meta` | 完整证据元数据（ID、类型、provider、summary、lineage、质量评分等） |
+
+### 9.2 `_template_meta` 关键字段
+
+```json
+"_template_meta": {
+  "raw_payload_schema": { ... },   // 递归 Schema，每字段含 jinja_path
+  "jinja_paths": [...],             // 扁平路径列表，**可直接复制到模板**
+  "top_level_keys": [...]           // 根键快览
+}
+```
+
+| 字段 | 用途 |
+|------|------|
+| `raw_payload_schema` | 递归 JSON Schema，每字段含 `jinja_path` 与 `example` |
+| `jinja_paths` | 所有叶子字段的访问路径，**直接复制进模板** |
+| `top_level_keys` | 根层级键名快览 |
+
+### 9.3 模板取值规范
+
+1. **跑一次**生成证据：`tradingagents run --ticker AAPL ...`
+2. **打开** `runs/<run_id>/raw/ev-XXXX.json` → 看 `_template_meta.jinja_paths`
+3. **复制路径**到模板，**用括号语法**避免 dict 方法冲突：
+
+```jinja2
+{% for ev in evidence %}
+- [{{ ev.evidence_id }}] {{ ev.summary }}
+{% if ev.raw_payload["values"] is mapping %}
+  **关键数值 (最近 5 个交易日)：**
+  {% for k, v in (ev.raw_payload["values"].items() | list)[-5:] %}
+  - {{ k }}: {{ v }}
+  {% endfor %}
+{% endif %}
+{% endfor %}
+```
+
+> **强制**：键名可能冲突 dict 方法（`values`、`keys`、`items` 等），**必须用 `ev.raw_payload["key"]` 而非 `ev.raw_payload.key`**。
+
+### 9.4 Provider 合规要求
+
+- `RawEvidence.raw_payload` 必须是可 JSON 序列化的 dict
+- 任意嵌套结构均自动推导 Schema，store 端零配置
+- 可选：在 raw_payload 加入 `_template_hint` 提供额外提示
+
+---
+
+> **更新规则**：修改架构模式、i18n 用法、目录结构、**模板规范、Evidence Schema** 时，**必须同步更新本文档**。

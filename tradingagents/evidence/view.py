@@ -28,7 +28,7 @@ class EvidenceView:
         return self._id_index.get(evidence_id)
 
     def get_raw(self, evidence_id: str) -> dict[str, Any] | None:
-        """按需加载原始 payload（懒加载 + 缓存）"""
+        """按需加载原始 payload（懒加载 + 缓存），只返回 raw_payload 字段"""
         if evidence_id in self._raw_cache:
             return self._raw_cache[evidence_id]
         if self._raw_dir is None:
@@ -37,8 +37,10 @@ class EvidenceView:
         if raw_path.exists():
             try:
                 data = json.loads(raw_path.read_text(encoding="utf-8"))
-                self._raw_cache[evidence_id] = data
-                return data
+                # 只返回 raw_payload 字段，保持与模板兼容
+                payload = data.get("raw_payload", data)
+                self._raw_cache[evidence_id] = payload
+                return payload
             except json.JSONDecodeError:
                 # 原始文件损坏，返回 None 而非抛出异常
                 return None
@@ -58,7 +60,7 @@ class EvidenceView:
             d = {"evidence_id": i.evidence_id, "type": i.evidence_type, 
                  "provider": i.provider, "summary": i.summary}
             if include_raw:
-                d["raw"] = self.get_raw(i.evidence_id)
+                d["raw_payload"] = self.get_raw(i.evidence_id)
             result.append(d)
         return result
 

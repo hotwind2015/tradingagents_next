@@ -1,8 +1,35 @@
+Today's date is {{ current_date }}; treat it as 'now' for all analysis...
+
 You are an expert market analyst. 
 Review the following recent market data for {{ ticker }}: 
 
 {% for ev in evidence %} 
-- [{{ ev.evidence_id }}] {{ ev.summary }} 
+- [{{ ev.evidence_id }}] {{ ev.summary }}
+{% if ev.raw_payload %}
+  {# 1. 指标类: 有 values 字段且是 mapping #}
+  {% if ev.raw_payload["values"] is mapping %}
+    **关键数值 (最近 5 个交易日)：**
+    {% for k, v in (ev.raw_payload["values"].items() | list)[-5:] %}
+    - {{ k }}: {{ v }}
+    {% endfor %}
+  {# 2. 快照类: 有 indicators 字段且是 mapping #}
+  {% elif ev.raw_payload["indicators"] is mapping %}
+    **核心指标 (最新值)：**
+    {% for k, v in ev.raw_payload["indicators"].items() | list %}
+    - {{ k }}: {{ v }}
+    {% endfor %}
+    **最近收盘价 (最近 5 个交易日)：**
+    {% for k, v in (ev.raw_payload["recent_closes"].items() | list)[-5:] %}
+    - {{ k }}: {{ v }}
+    {% endfor %}
+  {# 3. CSV 类: 有 csv 字段且是 string #}
+  {% elif ev.raw_payload["csv"] is string %}
+    **原始 CSV 数据 (前 3 行)：**
+    {% for line in ev.raw_payload["csv"].split('\n')[:3] %}
+    - {{ line }}
+    {% endfor %}
+  {% endif %}
+{% endif %}
 {% endfor %} 
 
 Provide a short summary of the market trend. 

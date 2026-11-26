@@ -31,9 +31,16 @@ class EvidenceStore:
         item.seal(prev_hash)
 
         if raw_payload is not None:
+            # _meta 直接用 EvidenceItem 的完整元数据（model_dump）
+            # raw_payload 作为主载荷，_meta 作为完整证据元数据
+            save_payload = {
+                **(item.model_dump(mode="json", exclude={"self_hash", "prev_hash"})),
+                "raw_payload":raw_payload,
+            }
+            
             raw_path = self._raw_dir / f"{item.evidence_id}.json"
             raw_path.write_text(
-                json.dumps(raw_payload, ensure_ascii=False, indent=2), encoding="utf-8"
+                json.dumps(save_payload, ensure_ascii=False, indent=2), encoding="utf-8"
             )
             # 将 raw 文件的哈希加入 integrity chain 的覆盖范围
             self._append_chain_record("raw_file", raw_path.name, sha256_payload(raw_payload))

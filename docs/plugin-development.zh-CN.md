@@ -262,3 +262,129 @@ tradingagents run --ticker AAPL --config ./my_config/mock_test.yaml --plugin-dir
 ```bash
 tradingagents run --ticker AAPL --config tests/recipes/smoke_v2.yaml
 ```
+
+## 9. Evidence Schema 与模板取值路径
+
+运行一次分析后，每条证据都会保存为 `runs/<run_id>/raw/ev-XXXX.json`。文件不仅包含原始载荷，还自动生成元数据，帮助模板作者快速找到正确的取值路径。
+
+### 9.1 证据 JSON 结构
+
+每个 `ev-XXXX.json` 包含：
+
+| 字段 | 说明 |
+|------|------|
+| `indicator`、`values` 等 | Provider 返回的原始载荷（因 provider 而异） |
+| `_template_meta` | 自动生成的模板编写指引（见下） |
+| `_evidence_meta` | 完整证据元数据（ID、类型、provider、summary、lineage、质量评分等） |
+
+### 9.2 `_template_meta` — 模板作者的指引
+
+```json
+"_template_meta": {
+  "raw_payload_schema": {
+    "type": "object",
+    "jinja_path": "raw_payload",
+    "properties": {
+      "indicator": { "type": "string", "jinja_path": "raw_payload.indicator", "example": "rsi" },
+      "values": {
+        "type": "object",
+        "jinja_path": "raw_payload.values",
+        "properties": {
+          "2026-11-24": { "type": "string", "jinja_path": "raw_payload.values.2026-11-24", "example": "56.85" }
+        },
+        "keys": ["2026-11-25", "2026-11-24", ...],
+        "example": { "2026-11-25": "N/A", "2026-11-24": "56.85" }
+      },
+      "as_of_date": { "type": "string", "jinja_path": "raw_payload.as_of_date", "example": "2026-11-25" },
+      "look_back_days": { "type": "integer", "jinja_path": "raw_payload.look_back_days", "example": 30 }
+    }
+  },
+  "jinja_paths": [
+    "raw_payload.indicator",
+    "raw_payload.values",
+    "raw_payload.values.2026-11-24",
+    "raw_payload.as_of_date",
+    "raw_payload.look_back_days",
+    "raw_payload.description"
+  ],
+  "top_level_keys": ["indicator", "values", "as_of_date", "look_back_days", "description"]
+}
+```
+
+#### 关键字段说明
+
+| 字段 | 用途 |
+|------|------|
+| `raw_payload_schema` | 完整载荷的递归 JSON Schema，每个字段都有 `jinja_path` |
+| `jinja_paths` | 所有叶子字段的扁平访问路径列表 — **可直接复制到模板** |
+| `top_level_keys` | 根层级键名快览 |
+
+### 9.3 模板中如何使用
+
+1. **先跑一次**生成证据文件：
+   ```bash
+   tradingagents run --ticker AAPL --config config/default.yaml --lang zh-CN
+   ```
+
+2. **打开任意 `runs/<run_id>/raw/ev-XXXX.json`**，查看 `_template_meta.jinja_paths`
+
+3. **复制路径**并在 Jinja2 模板中使用（加 `ev.raw_payload.` 前缀）：
+   ```jinja2
+   {% for ev in evidence %}
+   - [{{ ev.evidence_id }}] {{ ev.summary }}
+   {% if ev.raw_payload["values"] is mapping %}
+     **关键数值 (最近 5 个交易日)：**
+     {% for k, v in (ev.raw_payload["values"].items() | list)[-5:] %}
+     - {{ k }}: {{ v }}
+     {% endfor %}
+   {% endif %}
+   {% endfor %}
+   ```
+
+   > **重要**：键名可能与 Python dict 方法冲突（如 `values`、`keys`、`items`），请用括号语法 `ev.raw_payload["values"]`，不要用点号 `ev.raw_payload.values`。
+
+### 9.4 `_evidence_meta` — 完整证据上下文
+
+```json
+"_evidence_meta": {
+  "evidence_id": "ev-0001",
+  "evidence_type": "market_indicators",
+  "provider": "yfinance_kline",
+  "method": "stockstats",
+  "summary": "rsi values from 2026-10-26 to 2026-11-25",
+  "fetched_at": "2026-11-25T14:00:38.853340+00:00",
+  "fallback_hit": false,
+  "metadata": {
+    "source_provider": "yfinance_kline",
+    "source_method": "stockstats",
+    "processing_level": "raw",
+    "processing_chain": ["fetch"],
+    "quality_scores": { "completeness": 1.0, "freshness": 1.0 }
+  },
+  "lineage": []
+}
+```
+
+可用于调试、审计、报告中展示数据溯源。
+
+### 9.5 Provider 开发最佳实践
+
+实现新 `DataProvider` 时，确保 `RawEvidence.raw_payload` 是 **可 JSON 序列化的 dict**。Schema 推导完全自动，支持任意结构（对象、数组、嵌套），store 端无需改代码。
+
+若 provider 有特殊字段需提示模板作者，可在 raw_payload 中加入可选的 `_template_hint`（会被合并到 `_template_meta`）：
+```python
+RawEvidence(
+    ...
+    raw_payload={
+        "my_custom_field": [...],
+        "_template_hint": {
+            "category": "technical",
+            "description": "自定义波动率指标，用 ev.raw_payload.my_custom_field 遍历"
+        }
+    }
+)
+```
+
+---
+
+这样模板作者**完全不需要读 provider 代码** — 跑一次、打开 JSON、复制 `jinja_paths`、粘贴进模板即可。
