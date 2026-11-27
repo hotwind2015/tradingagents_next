@@ -24,6 +24,9 @@ yfinance_fundamentals = "tradingagents.providers.yfinance.fundamentals:YFinanceF
 fred_macro = "tradingagents.providers.fred.macro:FredMacroProvider"
 stocktwits_social = "tradingagents.providers.stocktwits.social:StockTwitsSocialProvider"
 reddit_social = "tradingagents.providers.reddit.social:RedditSocialProvider"
+alpha_vantage_kline = "tradingagents.providers.alpha_vantage.kline:AlphaVantageKlineProvider"
+alpha_vantage_news = "tradingagents.providers.alpha_vantage.news:AlphaVantageNewsProvider"
+alpha_vantage_fundamentals = "tradingagents.providers.alpha_vantage.fundamentals:AlphaVantageFundamentalsProvider"
 
 [project.entry-points."tradingagents.roles"]
 market_analyst = "tradingagents.roles.market_analyst:MarketAnalyst"

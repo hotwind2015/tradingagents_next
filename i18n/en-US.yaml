@@ -262,3 +262,27 @@ providers:
     social:
       reddit_summary: "Reddit discussions..."
       unavailable: "Reddit unavailable..."
+  alpha_vantage:
+    kline:
+      market_summary: "{ticker} latest close: {close:.2f}, two-day change: {pct_change:.2f}%"
+      indicator_desc:
+        rsi: "RSI: Momentum indicator for overbought/oversold"
+        macd: "MACD: Trend indicator for trend changes"
+        close_50_sma: "50 SMA: Medium-term trend"
+        close_200_sma: "200 SMA: Long-term trend benchmark"
+        close_10_ema: "10 EMA: Short-term trend"
+        boll: "Bollinger Middle Band"
+        boll_ub: "Bollinger Upper Band"
+        boll_lb: "Bollinger Lower Band"
+        atr: "ATR: Volatility indicator"
+        vwma: "Volume Weighted Moving Average"
+        mfi: "Money Flow Index"
+    news:
+      news_summary: "Recent news for {ticker}: {headlines}, {count} articles"
+      global_news_summary: "Global macro news ({start_date} to {end_date}): {headlines}, {count} articles"
+    fundamentals:
+      fundamentals_summary: "{ticker} P/E: {pe}, market cap: {market_cap}, profit margin: {profit_margin}"
+      balance_sheet: "Balance Sheet"
+      cash_flow: "Cash Flow"
+      income_statement: "Income Statement"
+      insider_transactions: "Insider Transactions"
