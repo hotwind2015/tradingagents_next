@@ -248,9 +248,10 @@ class YFinanceNewsProvider:
             
             if in_range:
                 summary = i18n.t(
-                    "evidence.news_summary",
+                    "providers.yfinance.news.news_summary",
                     ticker=req.ticker,
-                    headlines=_format_articles(in_range)
+                    headlines=_format_articles(in_range),
+                    count=len(in_range),
                 )
             else:
                 if not feed:
@@ -308,10 +309,11 @@ class YFinanceNewsProvider:
                 summary = f"No global news found between {start_date} and {as_of_date}"
             else:
                 summary = i18n.t(
-                    "evidence.global_news_summary",
+                    "providers.yfinance.news.global_news_summary",
                     headlines=news_str,
                     start_date=start_date,
-                    end_date=as_of_date
+                    end_date=as_of_date,
+                    count = len(in_window_news)
                 )
             
             results.append(RawEvidence(

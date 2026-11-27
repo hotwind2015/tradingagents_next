@@ -66,6 +66,7 @@ class DataRouter:
                                 "run.fetched_evidence",
                                 ev_id=item.evidence_id,
                                 summary=item.summary,
+                                provider=item.provider
                             )
                         )
                     return  # 成功获取就退出尝试链

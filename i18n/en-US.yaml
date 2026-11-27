@@ -42,7 +42,7 @@ cli:
 run:
   started: "Starting run {run_id} for ticker: {ticker}"
   fetching_evidence: "Fetching evidence data..."
-  fetched_evidence: "Fetched evidence {ev_id}: {summary}"
+  fetched_evidence: "Fetched evidence from [{provider}] {ev_id}: {summary}"
   analyst_started: "Running analyst: {role_id}"
   manager_started: "Running project manager..."
   completed: "Run complete. Report generated at: {path}"
@@ -236,8 +236,8 @@ providers:
     snapshot:
       verified_snapshot: "Verified Market Snapshot"
     news:
-      news_summary: "{ticker} recent news: {headlines}"
-      global_news_summary: "Global market news: {headlines}"
+      news_summary: "recent news: {count} article(s)"
+      global_news_summary: "Global market news: {count} article(s)"
     fundamentals:
       fundamentals_summary: "{ticker} P/E: {pe}, market cap: {market_cap}, profit margin: {profit_margin}"
       balance_sheet: "Balance Sheet"
