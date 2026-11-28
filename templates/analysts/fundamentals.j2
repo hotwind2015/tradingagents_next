@@ -2,45 +2,9 @@ Today's date is {{ current_date }}; treat it as 'now' for all analysis...
 
 You are a fundamentals analyst.
 Analyze {{ ticker }} based on this data:
-{% for ev in evidence %}
-- [{{ ev.evidence_id }}] {{ ev.summary }}
-{% if ev.raw_payload %}
-  {% if ev.raw_payload.fields is mapping and ev.raw_payload.fields %}
-    **核心财务指标：**
-    {% for key, value in ev.raw_payload.fields.items() %}
-    - **{{ key }}**: {{ value }}
-    {% endfor %}
-  {% elif ev.raw_payload.raw_info is mapping and ev.raw_payload.raw_info %}
-    **原始财务信息：**
-    {% for key, value in ev.raw_payload.raw_info.items() %}
-      {% if value is not none %}
-      - **{{ key }}**: {{ value }}
-      {% endif %}
-    {% endfor %}
-  {% elif ev.raw_payload.statement_type is defined %}
-    **财务报表 ({{ ev.raw_payload.statement_type }}, {{ ev.raw_payload.freq }}):**
-    {% if ev.raw_payload.csv %}
-    ```
-    {{ ev.raw_payload.csv[:2000] }}{% if ev.raw_payload.csv|length > 2000 %}...{% endif %}
-    ```
-    {% endif %}
-  {% elif ev.raw_payload.insider_transactions is iterable and ev.raw_payload.insider_transactions %}
-    **内部人交易：**
-    {% for trade in ev.raw_payload.insider_transactions %}
-    - **交易者**: {{ trade.Insider | default(trade.Insider | default('N/A')) }}
-      **职位**: {{ trade.Position | default('N/A') }}
-      **交易类型**: {{ trade.Text | default('N/A') }}
-      **股数**: {{ trade.Shares | default('N/A') }}
-      **价格**: {{ trade.Value | default('N/A') }}
-      **日期**: {{ trade.Start_Date | default('N/A') }}
-    {% endfor %}
-  {% elif ev.raw_payload.withheld is defined %}
-    **数据获取受限**: {{ ev.raw_payload.withheld }}
-  {% elif ev.raw_payload.error is defined %}
-    **数据获取失败**: {{ ev.raw_payload.error }}
-  {% endif %}
-{% endif %}
-{% endfor %}
+
+{{evidence}}
+
 ---
 
 ## Data & Parameter Optimization Suggestions (Optional)

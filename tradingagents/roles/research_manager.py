@@ -1,9 +1,7 @@
 from __future__ import annotations
-import json
 from typing import Any
-from tradingagents.evidence.view import EvidenceView
 from tradingagents.roles.base import AnalystRole, RoleOutput, RoleBase
-from tradingagents.run.context import RunContext
+from tradingagents.run.analyst_context import AnalystContext
 from tradingagents.utils.json_parser import extract_json
 
 
@@ -13,10 +11,13 @@ class ResearchManager(RoleBase, AnalystRole):
     produces = {"investment_plan"}
     template = "research/manager.j2"
 
-    def prepare_context(self, ctx: "AnalystContext") -> dict[str, Any]:
+    def prepare_context(self, ctx: AnalystContext) -> dict[str, Any]:
+        items = ctx.evidence.to_prompt_items(self.consumes, include_raw=True)
+        evidence_text = self._format_evidence(items)
+        
         return {
             "ticker": ctx.ticker,
-            "evidence": ctx.evidence.to_prompt_items(ctx.consumes, include_raw=True),
+            "evidence": evidence_text,
             "output_language": ctx.lang,
             "market_outlook": ctx.get_prior_narrative("market_analyst"),
             "sentiment_report": ctx.get_prior_narrative("sentiment_analyst"),

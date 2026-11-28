@@ -409,11 +409,19 @@ class Orchestrator:
                     )
                     raise
                 
+                # 渲染提示词（用于持久化）
                 prompt_text = renderer.render(role.template, prompt_ctx)
                 persister.save(role.role_id, 1, prompt_text, {"template": role.template})
                 
-                raw_res = llm.invoke(prompt_text, role_ctx.model_config)
-                out = role.parse_output(raw_res)
+                # 注入 renderer 和 llm 到 shared_state，由角色内部 analyze() 使用
+                role_ctx.shared_state = {
+                    **base_ctx.shared_state,
+                    "prompt_renderer": renderer,
+                    "llm_client": llm,
+                }
+                
+                # 统一调用 analyze()，角色内部完成 render -> llm -> parse
+                out = role.analyze(role_ctx)
                 
                 state_mgr.save_output(role_spec.role_id, out)
                 
@@ -472,11 +480,19 @@ class Orchestrator:
                 )
                 raise
             
+            # 渲染提示词（用于持久化）
             prompt_text = renderer.render(role.template, prompt_ctx)
             persister.save(role.role_id, 1, prompt_text, {"template": role.template})
             
-            raw_res = llm.invoke(prompt_text, pm_ctx.model_config)
-            out = role.parse_output(raw_res)
+            # 注入 renderer 和 llm 到 shared_state
+            pm_ctx.shared_state = {
+                **base_ctx.shared_state,
+                "prompt_renderer": renderer,
+                "llm_client": llm,
+            }
+            
+            # 统一调用 analyze()
+            out = role.analyze(pm_ctx)
             
             state_mgr.save_output(pm_spec.role_id, out)
             s["final_report"] = out

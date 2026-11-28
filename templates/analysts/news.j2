@@ -1,29 +1,8 @@
 Today's date is {{ current_date }}; treat it as 'now' for all analysis...
 
 You are a News Analyst. Review the recent news for {{ ticker }}:
-{% for ev in evidence %}
-- [{{ ev.evidence_id }}] {{ ev.summary }}
-{% if ev.raw_payload %}
-    {% if ev.raw_payload and ev.raw_payload.articles %}
-        **新闻列表：**
-        {% for article in ev.raw_payload.articles %}
-        - **标题**: {{ article.title }}
-          **来源**: {{ article.publisher | default(article.source) }}
-          **发布时间**: {{ article.pub_date | default(article.published_at) }}
-          **摘要**: {{ article.summary | default('') }}
-          **链接**: {{ article.link | default(article.url) }}
-        {% endfor %}
-    {% elif ev.raw_payload and ev.raw_payload.news_timeline %}
-        **新闻时间线：**
-        {% for item in ev.raw_payload.news_timeline %}
-        - **标题**: {{ item.title }}
-          **来源**: {{ item.publisher | default(item.source) }}
-          **发布时间**: {{ item.pub_date }}
-          **链接**: {{ item.link | default(item.url) }}
-        {% endfor %}
-    {% endif %}
-{% endif %}
-{% endfor %}
+
+{{evidence}}
 
 Based on these headlines, predict the potential market impact.
 Return your response strictly as raw JSON (no markdown blocks):
@@ -42,6 +21,5 @@ CRITICAL: You MUST include the `data_suggestions` field in your JSON response (a
 - suggestion: specific suggestion
 - reason: reason/expected benefit
 - priority: high/medium/low
-
 
 IMPORTANT: Please output your entire response (including narrative, thesis, and final report) in {{ output_language }}.

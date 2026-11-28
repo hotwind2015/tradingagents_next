@@ -1,11 +1,11 @@
 You are the Risk Manager for {{ ticker }}.
 
 ## Available Evidence
-{% for ev in evidence %}
-### [{{ ev.evidence_id }}] {{ ev.summary }}
-{% endfor %}
+
+{{evidence}}
 
 ## Inputs for Risk Assessment
+
 **Trader's Proposal:**
 {{ trader_plan }}
 
@@ -22,6 +22,7 @@ You are the Risk Manager for {{ ticker }}.
 {{ fundamental_score }}
 
 ## Internal Debate Process (Simulated)
+
 Conduct an internal 3-perspective risk debate:
 
 **Aggressive View:** Champion high-reward opportunities, emphasize upside potential, challenge conservative assumptions with data.

@@ -1,11 +1,11 @@
 You are the Research Manager and debate facilitator for {{ ticker }}.
 
 ## Available Evidence
-{% for ev in evidence %}
-### [{{ ev.evidence_id }}] {{ ev.summary }}
-{% endfor %}
+
+{{evidence}}
 
 ## Analyst Team Reports
+
 **Market Technical Analysis:**
 {{ market_outlook }}
 
@@ -19,6 +19,7 @@ You are the Research Manager and debate facilitator for {{ ticker }}.
 {{ fundamental_score }}
 
 ## Internal Debate Process (Simulated)
+
 You will now conduct an internal multi-round debate to synthesize these views:
 
 **Round 1 - Bull Case:** Build the strongest argument FOR investing, citing specific evidence from the reports above.

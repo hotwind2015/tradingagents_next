@@ -159,6 +159,14 @@ class ProjectManager(RoleBase, ProjectManagerBase):
             "action_plan": self._compile_action_plan(analyst_data),
         }
         
+        # 预格式化复杂结构为字符串，避免模板中使用 | tojson 导致 Unicode 转义
+        formatted_sections = {k: self._format_compiled_section(v) for k, v in compiled_sections.items()}
+        formatted_evidence = {k: self._format_compiled_section(v) for k, v in evidence_data.items()}
+        formatted_analyst = {k: {
+            **v, 
+            "fields_str": self._format_compiled_section(v.get("fields", {}))
+        } for k, v in analyst_data.items()}
+        
         # 设置 i18n 语言
         if ctx.lang:
             set_i18n(ctx.lang)
@@ -166,12 +174,12 @@ class ProjectManager(RoleBase, ProjectManagerBase):
         # 获取 i18n 实例
         i18n = get_i18n()
         
-        # 构建最终上下文
+        # 构建最终上下文 - 使用预格式化的字符串，避免模板中 | tojson 导致 Unicode 转义
         context = {
             "ticker": ctx.ticker,
-            "analyst_data": analyst_data,
-            "evidence_data": evidence_data,
-            "compiled_sections": compiled_sections,
+            "analyst_data": formatted_analyst,
+            "evidence_data": formatted_evidence,
+            "compiled_sections": formatted_sections,
             "output_language": ctx.lang,
             "run_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             "i18n": i18n,
@@ -179,6 +187,22 @@ class ProjectManager(RoleBase, ProjectManagerBase):
         }
         
         return context
+
+    def _format_compiled_section(self, value: Any, max_chars: int = 8000) -> str:
+        """
+        将编译章节的复杂结构格式化为字符串，避免模板中 | tojson 导致 Unicode 转义。
+        
+        兼容 dict、list、primitive 类型，输出紧凑的 JSON 字符串（保留 Unicode 字符）。
+        """
+        if value is None:
+            return ""
+        if isinstance(value, (str, int, float, bool)):
+            return str(value)
+        # dict/list 等复杂结构：JSON 序列化，保留 Unicode，必要时截断
+        payload_str = json.dumps(value, ensure_ascii=False, default=str)
+        if len(payload_str) > max_chars:
+            payload_str = payload_str[:max_chars] + "... [truncated]"
+        return payload_str
     
     def _get_display_name(self, role_id: str) -> str:
         """获取分析师显示名称"""

@@ -1,11 +1,11 @@
 You are a trading agent for {{ ticker }}.
 
 ## Available Evidence
-{% for ev in evidence %}
-### [{{ ev.evidence_id }}] {{ ev.summary }}
-{% endfor %}
+
+{{evidence}}
 
 ## Inputs
+
 **Research Manager's Investment Plan:**
 {{ investment_plan }}
 
@@ -13,6 +13,7 @@ You are a trading agent for {{ ticker }}.
 {{ market_outlook }}
 
 ## Task
+
 Convert the investment plan into a concrete transaction proposal.
 
 **Ground price levels (entry, stop-loss, position sizing) in the market report's price structure** — current price, support/resistance, ATR, volatility. Use the investment plan for direction and strategy.
