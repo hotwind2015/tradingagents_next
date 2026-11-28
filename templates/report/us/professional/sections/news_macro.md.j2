@@ -1,0 +1,27 @@
+## {{ i18n.t("report.sections.news_macro", default="News & Macro Analysis") }}
+
+{{ compiled_sections.news_macro.narrative }}
+
+{% set nm = compiled_sections.news_macro %}
+
+{% if nm.news_timeline %}
+{{ render_news(nm.news_timeline) }}
+{% endif %}
+
+{% if nm.macro_indicators %}
+{{ render_macro(nm.macro_indicators) }}
+{% endif %}
+
+{% if nm.news_analyst_fields %}
+{% if nm.news_analyst_fields.industry %}
+{{ render_industry(nm.news_analyst_fields.industry) }}
+{% endif %}
+
+{% if nm.news_analyst_fields.company %}
+{{ render_company(nm.news_analyst_fields.company) }}
+{% endif %}
+
+{% if nm.news_analyst_fields.strategies %}
+{{ render_strategies(nm.news_analyst_fields.strategies) }}
+{% endif %}
+{% endif %}

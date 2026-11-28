@@ -1,0 +1,32 @@
+## {{ i18n.t("report.sections.fundamental_analysis", default="Fundamental Analysis") }}
+
+{{ compiled_sections.fundamental_analysis.narrative }}
+
+{% set fund = compiled_sections.fundamental_analysis %}
+
+{% if fund.fundamentals_overview %}
+{% if fund.fundamentals_overview.ratios %}
+{{ render_financial_ratios(fund.fundamentals_overview, fund.fund_analyst_fields) }}
+{% endif %}
+
+{% if fund.fundamentals_overview.growth %}
+{{ render_growth_metrics(fund.fundamentals_overview) }}
+{% endif %}
+
+{% if fund.fundamentals_overview.valuation %}
+{{ render_valuation(fund.fundamentals_overview) }}
+{% endif %}
+
+{% if fund.fundamentals_overview.profitability %}
+{{ render_profitability(fund.fundamentals_overview) }}
+{% endif %}
+{% endif %}
+
+{% if fund.financial_statements %}
+{{ render_balance_sheet(fund.financial_statements) }}
+{{ render_cash_flow(fund.financial_statements) }}
+{% endif %}
+
+{% if fund.insider_transactions %}
+{{ render_insider(fund.insider_transactions) }}
+{% endif %}

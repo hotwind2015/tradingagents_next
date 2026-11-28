@@ -1,0 +1,28 @@
+## {{ i18n.t("report.sections.risk_reward", default="Risk-Reward Analysis") }}
+
+{% set rr = compiled_sections.risk_reward %}
+
+{% if rr.risk_reward_matrix %}
+### {{ i18n.t("report.risk_reward", default="Risk-Reward Matrix") }}
+
+| {{ i18n.t("report.scenario", default="Scenario") }} | {{ i18n.t("report.trigger", default="Trigger") }} | {{ i18n.t("report.outcome", default="Outcome") }} | {{ i18n.t("report.probability", default="Probability") }} | {{ i18n.t("report.risk_reward_ratio", default="R/R Ratio") }} |
+| :--- | :--- | :--- | :---: | :---: |
+{% for row in rr.risk_reward_matrix %}
+| **{{ row.scenario }}** | {{ row.trigger }} | {{ row.outcome }} | {{ row.probability }} | {{ row.ratio }} |
+{% endfor %}
+{% endif %}
+
+{% if rr.risk_analyst_fields %}
+{{ render_risk_factors(rr.risk_analyst_fields.risks) }}
+{{ render_catalysts(rr.risk_analyst_fields.catalysts) }}
+{% endif %}
+
+{% if rr.trader_view %}
+### {{ i18n.t("report.sections.trading_team", default="Trader View") }}
+{{ rr.trader_view }}
+{% endif %}
+
+{% if rr.risk_manager_view %}
+### {{ i18n.t("report.sections.risk_team", default="Risk Manager View") }}
+{{ rr.risk_manager_view }}
+{% endif %}

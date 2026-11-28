@@ -1,0 +1,18 @@
+## {{ i18n.t("report.data_suggestions", default="Data Optimization Suggestions") }}
+
+{% set all_suggestions = [] %}
+{% for role_id, output in analyst_data.items() %}
+  {% set suggestions = output.fields.data_suggestions if output.fields and output.fields.data_suggestions else [] %}
+  {% for s in suggestions %}
+    {% set _ = s.update({"analyst": output.display_name}) %}
+    {% set _ = all_suggestions.append(s) %}
+  {% endfor %}
+{% endfor %}
+
+{% if all_suggestions %}
+| {{ i18n.t("report.analyst", default="Analyst") }} | {{ i18n.t("report.category", default="Category") }} | {{ i18n.t("report.suggestion", default="Suggestion") }} | {{ i18n.t("report.reason", default="Reason") }} | {{ i18n.t("report.priority", default="Priority") }} |
+| :--- | :--- | :--- | :--- | :---: |
+{% for s in all_suggestions %}
+| {{ s.analyst }} | {{ s.category }} | {{ s.suggestion }} | {{ s.reason }} | {{ s.priority }} |
+{% endfor %}
+{% endif %}

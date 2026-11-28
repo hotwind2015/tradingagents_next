@@ -1,0 +1,32 @@
+## {{ i18n.t("report.evidence_chain", default="Evidence Chain / Genealogy") }}
+
+{% if evidence_data.evidence_chains %}
+### {{ i18n.t("report.evidence_appendix", default="Evidence Appendix") }}
+
+| {{ i18n.t("report.evidence_id", default="Evidence ID") }} | {{ i18n.t("report.evidence_type", default="Type") }} | {{ i18n.t("report.data_source", default="Data Source") }} | {{ i18n.t("report.summary", default="Summary") }} | {{ i18n.t("report.processing_level", default="Level") }} | {{ i18n.t("report.quality_scores", default="Quality") }} |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+{% for ev in evidence_data.evidence_chains %}
+| `{{ ev.evidence_id }}` | {{ ev.evidence_type }} | {{ ev.provider }} | {{ ev.summary }} | {{ ev.processing_level }} | {{ ev.quality_scores | tojson_unicode }} |
+{% endfor %}
+
+---
+
+### {{ i18n.t("report.evidence_chain", default="Evidence Chain / Genealogy") }}
+
+{% for ev in evidence_data.evidence_chains %}
+**`{{ ev.evidence_id }}`** ({{ ev.evidence_type }}, {{ ev.provider }})
+{{ ev.summary }}
+
+{% if ev.lineage %}
+**{{ i18n.t("report.lineage", default="Lineage") }}**: {% for anc in ev.lineage %}`{{ anc }}`{% if not loop.last %} → {% endif %}{% endfor %}
+{% endif %}
+{% if ev.processing_chain %}
+**{{ i18n.t("report.processing_chain", default="Processing Chain") }}**: {{ ev.processing_chain | join(" → ") }}
+{% endif %}
+{% if ev.quality_scores %}
+**{{ i18n.t("report.quality", default="Quality") }}**: {{ ev.quality_scores | tojson_unicode }}
+{% endif %}
+
+---
+{% endfor %}
+{% endif %}

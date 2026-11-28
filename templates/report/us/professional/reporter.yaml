@@ -1,0 +1,54 @@
+# US Professional Reporter Configuration
+# 
+# This file configures the reporter for US market professional reports.
+# It is automatically loaded by ReporterFactory when using the "us-professional" preset.
+
+template_dir: "report/us/professional"
+main_template: "report.md.j2"
+output_formats: ["md", "html"]
+
+# 章节定义 - 按顺序渲染
+sections:
+  - key: "header"
+    template: "sections/header"
+    required: true
+  - key: "executive_summary"
+    template: "sections/executive_summary"
+    required: true
+  - key: "analyst_views"
+    template: "sections/analyst_views"
+    required: true
+  - key: "technical_analysis"
+    template: "sections/technical_analysis"
+    required: true
+  - key: "fundamental_analysis"
+    template: "sections/fundamental_analysis"
+    required: true
+  - key: "sentiment_analysis"
+    template: "sections/sentiment_analysis"
+    required: true
+  - key: "news_macro"
+    template: "sections/news_macro"
+    required: true
+  - key: "risk_reward"
+    template: "sections/risk_reward"
+    required: true
+  - key: "action_plan"
+    template: "sections/action_plan"
+    required: true
+  - key: "evidence_chain"
+    template: "sections/evidence_chain"
+    required: true
+  - key: "data_suggestions"
+    template: "sections/data_suggestions"
+    required: false
+  - key: "footer"
+    template: "sections/footer"
+    required: true
+
+# 自定义配置，可在模板中通过 config.custom_config 访问
+custom_config:
+  rating_labels:
+    BUY: "买入"
+    HOLD: "持有"
+    SELL: "卖出"

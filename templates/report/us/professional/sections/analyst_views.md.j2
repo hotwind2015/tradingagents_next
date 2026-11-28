@@ -1,0 +1,29 @@
+## {{ i18n.t("report.analyst_views.title", default="Analyst Views") }}
+
+{% for analyst in compiled_sections.analyst_views %}
+### {{ analyst.role }}
+
+{{ analyst.narrative }}
+
+{% if analyst.fields %}
+**{{ i18n.t("report.structured_metrics", default="Structured Metrics") }}**:
+
+{% if analyst.render_hint == 'technical_indicators' %}
+{{ render_technical_indicators(analyst.fields.technical_indicators) }}
+{% elif analyst.render_hint == 'financial_ratios' %}
+{{ render_financial_ratios(analyst.fields.financial_ratios, analyst.fields) }}
+{% elif analyst.render_hint == 'core_signals' %}
+{{ render_signals(analyst.fields) }}
+{% else %}
+```json
+{{ analyst.fields | tojson_pretty }}
+```
+{% endif %}
+{% endif %}
+
+{% if analyst.cited_evidence %}
+*{{ i18n.t("report.cited_evidence", default="Cited Evidence") }}: {% for ev in analyst.cited_evidence %}`{{ ev }}`{% if not loop.last %}, {% endif %}{% endfor %}*
+{% endif %}
+
+---
+{% endfor %}

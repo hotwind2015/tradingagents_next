@@ -7,8 +7,9 @@ from .sentiment_analyst import SentimentAnalyst
 from .research_manager import ResearchManager
 from .trader import Trader
 from .risk_manager import RiskManager
+from .project_manager import ProjectManager
 
 __all__ = [
     "MarketAnalyst", "NewsAnalyst", "FundamentalsAnalyst", "SentimentAnalyst",
-    "ResearchManager", "Trader", "RiskManager"
+    "ResearchManager", "Trader", "RiskManager", "ProjectManager"
 ]

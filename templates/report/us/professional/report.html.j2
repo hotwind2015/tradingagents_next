@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;">
+<title>{{ title }} - {{ ticker }}: TradingAgents Report</title>
+<style>
+{% include "report/shared/themes/default.css.j2" %}
+{% include "report/shared/themes/print.css.j2" %}
+</style>
+</head>
+<body>
+<div class="page" id="top">
+<header class="masthead">
+<a class="logo" href="https://tauric.ai" rel="noopener" aria-label="Tauric Research">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#087a59"/><stop offset="100%" stop-color="#14c290"/></linearGradient></defs><rect width="120" height="120" rx="24" fill="url(#g)"/><path d="M30 60h60M60 30v60" stroke="white" stroke-width="10" stroke-linecap="round"/></svg>
+</a>
+<h1><span class="ticker">{{ ticker }}</span> <span class="rating {{ compiled_sections.executive_summary.rating | lower }}">{{ compiled_sections.executive_summary.rating }}</span></h1>
+<p class="date">{{ i18n.t("report.analysis_date", default="Analysis of") }} {{ analysis_date or run_time }}</p>
+<dl class="run">
+<div class="detail"><dt>{{ i18n.t("report.version", default="Version") }}</dt><dd>{{ version }}</dd></div>
+<div class="detail"><dt>{{ i18n.t("report.model_info", default="Model") }}</dt><dd>{{ model_info }}</dd></div>
+<div class="detail"><dt>{{ i18n.t("report.analysts", default="Analysts") }}</dt><dd>{{ analysts }}</dd></div>
+<div class="detail"><dt>{{ i18n.t("report.research_rounds", default="Research rounds") }}</dt><dd>{{ research_rounds }}</dd></div>
+<div class="detail"><dt>{{ i18n.t("report.risk_rounds", default="Risk rounds") }}</dt><dd>{{ risk_rounds }}</dd></div>
+{% if vendors %}
+<div class="detail"><dt>{{ i18n.t("report.vendors", default="Data vendors") }}</dt><dd>{{ vendors }}</dd></div>
+{% endif %}
+{% if memory_note %}
+<div class="detail note"><dt>{{ i18n.t("report.memory_log", default="Memory log") }}</dt><dd>{{ memory_note }}</dd></div>
+{% endif %}
+<div class="detail"><dt>{{ i18n.t("report.total_evidence", default="Total Evidence") }}</dt><dd>{{ evidence_data.total_evidence }}</dd></div>
+</dl>
+</header>
+
+<nav class="contents" aria-label="Sections">
+<ul>
+<li><a href="#executive-summary"><span class="num">1</span> <span class="label">{{ i18n.t("report.executive_summary", default="Executive Summary") }}</span></a></li>
+<li><a href="#analyst-views"><span class="num">2</span> <span class="label">{{ i18n.t("report.analyst_views.title", default="Analyst Views") }}</span></a></li>
+<li><a href="#technical-analysis"><span class="num">3</span> <span class="label">{{ i18n.t("report.sections.technical_analysis", default="Technical Analysis") }}</span></a></li>
+<li><a href="#fundamental-analysis"><span class="num">4</span> <span class="label">{{ i18n.t("report.sections.fundamental_analysis", default="Fundamental Analysis") }}</span></a></li>
+<li><a href="#sentiment-analysis"><span class="num">5</span> <span class="label">{{ i18n.t("report.sections.sentiment_analysis", default="Sentiment Analysis") }}</span></a></li>
+<li><a href="#news-macro"><span class="num">6</span> <span class="label">{{ i18n.t("report.sections.news_macro", default="News & Macro") }}</span></a></li>
+<li><a href="#risk-reward"><span class="num">7</span> <span class="label">{{ i18n.t("report.sections.risk_reward", default="Risk-Reward") }}</span></a></li>
+<li><a href="#action-plan"><span class="num">8</span> <span class="label">{{ i18n.t("report.action_plan", default="Action Plan") }}</span></a></li>
+{% if include_evidence_chain %}
+<li><a href="#evidence-chain"><span class="num">9</span> <span class="label">{{ i18n.t("report.evidence_chain", default="Evidence Chain") }}</span></a></li>
+{% endif %}
+</ul>
+</nav>
+
+<main>
+{% include "report/us/professional/sections/header.html.j2" %}
+
+<section id="executive-summary">
+<h2>{{ i18n.t("report.executive_summary", default="Executive Summary") }}</h2>
+<div class="prose">{{ compiled_sections.executive_summary.narrative | markdown_to_html | safe }}</div>
+
+{% if compiled_sections.executive_summary.risk_reward_matrix %}
+<h3>{{ i18n.t("report.risk_reward", default="Risk-Reward Matrix") }}</h3>
+<div class="table">{{ render_risk_reward(compiled_sections.executive_summary.risk_reward_matrix) | safe }}</div>
+{% endif %}
+
+{% if compiled_sections.executive_summary.action_plan %}
+<h3>{{ i18n.t("report.action_plan", default="Action Plan") }}</h3>
+<div class="table">{{ render_action_plan(compiled_sections.executive_summary.action_plan) | safe }}</div>
+{% endif %}
+</section>
+
+<section id="analyst-views">
+<h2>{{ i18n.t("report.analyst_views.title", default="Analyst Views") }}</h2>
+{% for analyst in compiled_sections.analyst_views %}
+<h3>{{ analyst.role }}</h3>
+<div class="prose">{{ analyst.narrative | markdown_to_html | safe }}</div>
+{% if analyst.fields %}
+{% if analyst.render_hint == 'technical_indicators' %}
+<div class="table">{{ render_technical_indicators(analyst.fields.technical_indicators) | safe }}</div>
+{% elif analyst.render_hint == 'financial_ratios' %}
+<div class="table">{{ render_financial_ratios(analyst.fields.financial_ratios, analyst.fields) | safe }}</div>
+{% elif analyst.render_hint == 'core_signals' %}
+<div class="table">{{ render_signals(analyst.fields) | safe }}</div>
+{% else %}
+<pre><code>{{ analyst.fields | tojson_pretty }}</code></pre>
+{% endif %}
+{% endif %}
+{% endfor %}
+</section>
+
+<section id="technical-analysis">
+<h2>{{ i18n.t("report.sections.technical_analysis", default="Technical Analysis") }}</h2>
+<div class="prose">{{ compiled_sections.technical_analysis.trend_analysis | markdown_to_html | safe }}</div>
+{% if compiled_sections.technical_analysis.indicators %}
+<div class="table">{{ render_technical_indicators(compiled_sections.technical_analysis.indicators) | safe }}</div>
+{% endif %}
+{% if compiled_sections.technical_analysis.key_levels %}
+<div class="table">{{ render_key_levels(compiled_sections.technical_analysis.indicators, {"key_levels": compiled_sections.technical_analysis.key_levels}) | safe }}</div>
+{% endif %}
+{% if compiled_sections.technical_analysis.signals %}
+<div class="table">{{ render_signals(compiled_sections.technical_analysis.signals) | safe }}</div>
+{% endif %}
+</section>
+
+<section id="fundamental-analysis">
+<h2>{{ i18n.t("report.sections.fundamental_analysis", default="Fundamental Analysis") }}</h2>
+<div class="prose">{{ compiled_sections.fundamental_analysis.narrative | markdown_to_html | safe }}</div>
+{% set fund = compiled_sections.fundamental_analysis %}
+{% if fund.fundamentals_overview %}
+{% if fund.fundamentals_overview.ratios %}
+<div class="table">{{ render_financial_ratios(fund.fundamentals_overview, fund.fund_analyst_fields) | safe }}</div>
+{% endif %}
+{% if fund.fundamentals_overview.growth %}
+<div class="table">{{ render_growth_metrics(fund.fundamentals_overview) | safe }}</div>
+{% endif %}
+{% if fund.fundamentals_overview.valuation %}
+<div class="table">{{ render_valuation(fund.fundamentals_overview) | safe }}</div>
+{% endif %}
+{% if fund.fundamentals_overview.profitability %}
+<div class="table">{{ render_profitability(fund.fundamentals_overview) | safe }}</div>
+{% endif %}
+{% endif %}
+{% if fund.financial_statements %}
+<div class="table">{{ render_balance_sheet(fund.financial_statements) | safe }}</div>
+<div class="table">{{ render_cash_flow(fund.financial_statements) | safe }}</div>
+{% endif %}
+{% if fund.insider_transactions %}
+<div class="table">{{ render_insider(fund.insider_transactions) | safe }}</div>
+{% endif %}
+</section>
+
+<section id="sentiment-analysis">
+<h2>{{ i18n.t("report.sections.sentiment_analysis", default="Sentiment Analysis") }}</h2>
+<div class="prose">{{ compiled_sections.sentiment_analysis.narrative | markdown_to_html | safe }}</div>
+{% set sent = compiled_sections.sentiment_analysis %}
+{% if sent.sentiment_data %}
+<div class="table">{{ render_sentiment(sent.sentiment_data) | safe }}</div>
+<div class="table">{{ render_platform_breakdown(sent.sentiment_data) | safe }}</div>
+{% endif %}
+</section>
+
+<section id="news-macro">
+<h2>{{ i18n.t("report.sections.news_macro", default="News & Macro Analysis") }}</h2>
+<div class="prose">{{ compiled_sections.news_macro.narrative | markdown_to_html | safe }}</div>
+{% set nm = compiled_sections.news_macro %}
+{% if nm.news_timeline %}
+<div class="table">{{ render_news(nm.news_timeline) | safe }}</div>
+{% endif %}
+{% if nm.macro_indicators %}
+<div class="table">{{ render_macro(nm.macro_indicators) | safe }}</div>
+{% endif %}
+{% if nm.news_analyst_fields %}
+{% if nm.news_analyst_fields.industry %}
+<div class="table">{{ render_industry(nm.news_analyst_fields.industry) | safe }}</div>
+{% endif %}
+{% if nm.news_analyst_fields.company %}
+<div class="table">{{ render_company(nm.news_analyst_fields.company) | safe }}</div>
+{% endif %}
+{% if nm.news_analyst_fields.strategies %}
+<div class="table">{{ render_strategies(nm.news_analyst_fields.strategies) | safe }}</div>
+{% endif %}
+{% endif %}
+</section>
+
+<section id="risk-reward">
+<h2>{{ i18n.t("report.sections.risk_reward", default="Risk-Reward Analysis") }}</h2>
+{% set rr = compiled_sections.risk_reward %}
+{% if rr.risk_reward_matrix %}
+<h3>{{ i18n.t("report.risk_reward", default="Risk-Reward Matrix") }}</h3>
+<div class="table">{{ render_risk_reward(rr.risk_reward_matrix) | safe }}</div>
+{% endif %}
+{% if rr.risk_analyst_fields %}
+<div class="table">{{ render_risk_factors(rr.risk_analyst_fields.risks) | safe }}</div>
+<div class="table">{{ render_catalysts(rr.risk_analyst_fields.catalysts) | safe }}</div>
+{% endif %}
+{% if rr.trader_view %}
+<h3>{{ i18n.t("report.sections.trading_team", default="Trader View") }}</h3>
+<div class="prose">{{ rr.trader_view | markdown_to_html | safe }}</div>
+{% endif %}
+{% if rr.risk_manager_view %}
+<h3>{{ i18n.t("report.sections.risk_team", default="Risk Manager View") }}</h3>
+<div class="prose">{{ rr.risk_manager_view | markdown_to_html | safe }}</div>
+{% endif %}
+</section>
+
+<section id="action-plan">
+<h2>{{ i18n.t("report.action_plan", default="Action Plan") }}</h2>
+{% if compiled_sections.action_plan %}
+<div class="table">{{ render_action_plan(compiled_sections.action_plan) | safe }}</div>
+{% endif %}
+</section>
+
+{% if include_evidence_chain %}
+<section id="evidence-chain">
+<h2>{{ i18n.t("report.evidence_chain", default="Evidence Chain / Genealogy") }}</h2>
+{% if evidence_data.evidence_chains %}
+<h3>{{ i18n.t("report.evidence_appendix", default="Evidence Appendix") }}</h3>
+<div class="table">{{ render_evidence_appendix(evidence_data.evidence_chains) | safe }}</div>
+<div class="table">{{ render_evidence_chain(evidence_data.evidence_chains) | safe }}</div>
+{% endif %}
+</section>
+{% endif %}
+
+</main>
+
+<footer class="credit"><a href="https://github.com/TauricResearch/TradingAgents" rel="noopener">TradingAgents</a> powered by <a class="brand" href="https://tauric.ai" rel="noopener">Tauric Research</a></footer>
+</div>
+<a class="to-top" href="#top">Top</a>
+</body>
+</html>

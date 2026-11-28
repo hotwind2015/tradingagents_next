@@ -1,0 +1,15 @@
+## {{ i18n.t("report.sections.technical_analysis", default="Technical Analysis") }}
+
+{{ compiled_sections.technical_analysis.trend_analysis }}
+
+{% if compiled_sections.technical_analysis.indicators %}
+{{ render_technical_indicators(compiled_sections.technical_analysis.indicators) }}
+{% endif %}
+
+{% if compiled_sections.technical_analysis.key_levels %}
+{{ render_key_levels(compiled_sections.technical_analysis.indicators, {"key_levels": compiled_sections.technical_analysis.key_levels}) }}
+{% endif %}
+
+{% if compiled_sections.technical_analysis.signals %}
+{{ render_signals(compiled_sections.technical_analysis.signals) }}
+{% endif %}

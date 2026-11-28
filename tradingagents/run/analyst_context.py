@@ -1,10 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from tradingagents.evidence.view import EvidenceView
 from tradingagents.models.recipe import Recipe
-from tradingagents.roles.base import RoleOutput
+
+if TYPE_CHECKING:
+    from tradingagents.roles.base import RoleOutput
 
 
 @dataclass

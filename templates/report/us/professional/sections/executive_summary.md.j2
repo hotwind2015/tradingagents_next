@@ -1,0 +1,28 @@
+## {{ i18n.t("report.executive_summary", default="Executive Summary") }}
+
+{{ compiled_sections.executive_summary.narrative }}
+
+{% if compiled_sections.executive_summary.risk_reward_matrix %}
+### {{ i18n.t("report.risk_reward", default="Risk-Reward Matrix") }}
+
+| {{ i18n.t("report.scenario", default="Scenario") }} | {{ i18n.t("report.trigger", default="Trigger") }} | {{ i18n.t("report.outcome", default="Outcome") }} | {{ i18n.t("report.probability", default="Probability") }} | {{ i18n.t("report.risk_reward_ratio", default="R/R Ratio") }} |
+| :--- | :--- | :--- | :---: | :---: |
+{% for row in compiled_sections.executive_summary.risk_reward_matrix %}
+| **{{ row.scenario }}** | {{ row.trigger }} | {{ row.outcome }} | {{ row.probability }} | {{ row.ratio }} |
+{% endfor %}
+{% endif %}
+
+{% if compiled_sections.executive_summary.action_plan %}
+### {{ i18n.t("report.action_plan", default="Action Plan") }}
+
+| {{ i18n.t("report.timeframe", default="Timeframe") }} | {{ i18n.t("report.action", default="Action") }} | {{ i18n.t("report.key_levels", default="Key Levels") }} | {{ i18n.t("report.risk_control", default="Risk Control") }} |
+| :--- | :--- | :--- | :--- |
+{% for row in compiled_sections.executive_summary.action_plan %}
+| **{{ row.timeframe }}** | {{ row.action }} | {{ row.levels }} | {{ row.risk }} |
+{% endfor %}
+{% endif %}
+
+{% if compiled_sections.executive_summary.cited_evidence %}
+**{{ i18n.t("report.cited_evidence", default="Key Cited Evidence") }}**: 
+{% for ev in compiled_sections.executive_summary.cited_evidence %}`{{ ev }}` {% endfor %}
+{% endif %}

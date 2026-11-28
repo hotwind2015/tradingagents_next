@@ -1,0 +1,5 @@
+## {{ i18n.t("report.action_plan", default="Action Plan") }}
+
+{% if compiled_sections.action_plan %}
+{{ render_action_plan(compiled_sections.action_plan) }}
+{% endif %}

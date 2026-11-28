@@ -1,0 +1,10 @@
+## {{ i18n.t("report.sections.sentiment_analysis", default="Sentiment Analysis") }}
+
+{{ compiled_sections.sentiment_analysis.narrative }}
+
+{% set sent = compiled_sections.sentiment_analysis %}
+
+{% if sent.sentiment_data %}
+{{ render_sentiment(sent.sentiment_data) }}
+{{ render_platform_breakdown(sent.sentiment_data) }}
+{% endif %}

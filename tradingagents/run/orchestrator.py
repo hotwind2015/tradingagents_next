@@ -23,8 +23,9 @@ from tradingagents.models.graph import EdgeIR, GraphIR, NodeIR
 from tradingagents.models.recipe import Recipe
 from tradingagents.prompt.persistence import PromptPersister
 from tradingagents.prompt.renderer import PromptRenderer
-from tradingagents.report.renderer import render_report
 from tradingagents.run.context import RunContext
+
+# 报告生成由 PM.analyze() 内部委托给 Reporter 完成
 
 # 引入重构后的组件
 from tradingagents.run.analyst_context import AnalystContext
@@ -247,7 +248,7 @@ class Orchestrator:
                 for t in role.consumes:
                     if t not in produced_by_roles:
                         required_evidence.add(t)
-                
+            
             # 读取处理层级配置（默认 RAW）
             processing_level = getattr(self.recipe.data, 'default_processing_level', 'raw')
             type_levels = getattr(self.recipe.data, 'processing_level', {})
@@ -445,7 +446,7 @@ class Orchestrator:
             role_cls = plugin_manager.get("role", pm_spec.role_id)
             role = role_cls()
             if hasattr(role, "configure"):
-                role.configure({})  # PM 通常无 args
+                role.configure(pm_spec.args)  # PM 也透传 args（含 reporter 配置）
             
             logger.info(i18n.t("run.manager_started"))
             
@@ -459,7 +460,7 @@ class Orchestrator:
                 evidence=base_ctx.evidence,
                 prior_outputs=base_ctx.prior_outputs,  # 全部分析师输出
                 shared_state=base_ctx.shared_state,
-                role_args={},
+                role_args=pm_spec.args,  # 透传 PM args（含 reporter 配置）
                 model_tier="deep",
                 model_config=self.recipe.models.deep,
             )
@@ -491,7 +492,7 @@ class Orchestrator:
                 "llm_client": llm,
             }
             
-            # 统一调用 analyze()
+            # 统一调用 analyze() - 内部会委托给 Reporter 生成报告
             out = role.analyze(pm_ctx)
             
             state_mgr.save_output(pm_spec.role_id, out)
@@ -505,7 +506,7 @@ class Orchestrator:
         # 6. 执行图
         final_state = executor.execute()
 
-        # 7. 收尾层：幻觉清理与报告生成
+        # 7. 收尾层：幻觉清理 + 证据引用记录
         report = final_state["final_report"]
         if report and report.cited_evidence:
             valid_ids = {item.evidence_id for item in store.manifest.items}
@@ -523,17 +524,27 @@ class Orchestrator:
             for ev_id in valid_citations:
                 store.manifest.citations.append(Citation(evidence_id=ev_id, section="conclusion"))
             store._flush_manifest()
-            
-        report_path = render_report(
-            final_output=report,
-            analyst_outputs=final_state["role_outputs"],
-            manifest=store.manifest,
-            run_dir=self.run_dir,
-            ticker=self.ticker,
-            lang=final_lang
-        )
+        
+        # 记录报告生成信息（由 PM.analyze() 内部委托 Reporter 生成）
+        if report and report.fields.get("report_bundles"):
+            for i, b in enumerate(report.fields["report_bundles"]):
+                meta = b.get("metadata", {})
+                formats = meta.get("formats", [])
+                logger.info(i18n.t("run.report_generated", 
+                    index=i+1, 
+                    formats=", ".join(formats),
+                    ticker=self.ticker
+                ))
+        elif report and report.fields.get("report_bundle"):
+            meta = report.fields["report_bundle"]
+            formats = meta.get("formats", [])
+            logger.info(i18n.t("run.report_generated", 
+                index=1, 
+                formats=", ".join(formats),
+                ticker=self.ticker
+            ))
         
         store.verify_integrity()
-        logger.info(i18n.t("run.completed", path=str(report_path)))
+        logger.info(i18n.t("run.completed", run_id=self.run_id))
         
-        return report_path
+        return self.run_dir

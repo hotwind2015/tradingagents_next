@@ -1,0 +1,13 @@
+# {{ title }} - {{ ticker }}
+
+> **{{ i18n.t("report.generated_at", default="Generated at") }}**: {{ run_time }}
+{% if run_id %}> **{{ i18n.t("report.run_id", default="Run ID") }}**: {{ run_id }}{% endif %}
+{% if analysis_date %}> **{{ i18n.t("report.analysis_date", default="Analysis date") }}**: {{ analysis_date }}{% endif %}
+> **{{ i18n.t("report.rating", default="Rating") }}**: {{ compiled_sections.executive_summary.rating }}
+> **{{ i18n.t("report.version", default="Version") }}**: {{ version }}
+> **{{ i18n.t("report.model_info", default="Model") }}**: {{ model_info }}
+> **{{ i18n.t("report.analysts", default="Analysts") }}**: {{ analysts }}
+> **{{ i18n.t("report.research_rounds", default="Research rounds") }}: {{ research_rounds }}, **{{ i18n.t("report.risk_rounds", default="Risk rounds") }}**: {{ risk_rounds }}
+{% if vendors %}> **{{ i18n.t("report.vendors", default="Data vendors") }}**: {{ vendors }}{% endif %}
+{% if memory_note %}> **{{ i18n.t("report.memory_log", default="Memory log") }}**: {{ memory_note }}{% endif %}
+> **{{ i18n.t("report.total_evidence", default="Total Evidence") }}**: {{ evidence_data.total_evidence }}
