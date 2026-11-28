@@ -286,3 +286,10 @@ providers:
       cash_flow: "Cash Flow"
       income_statement: "Income Statement"
       insider_transactions: "Insider Transactions"
+      
+  akshare:
+    kline:
+      market_summary: "{ticker} latest close: {close:.2f}, two-day change: {pct_change:.2f}%"
+    index:
+      index_summary: "{index_name} latest close: {close}, change: {pct_change:.2f}%"
+    

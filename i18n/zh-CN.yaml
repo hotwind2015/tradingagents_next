@@ -286,3 +286,17 @@ providers:
       cash_flow: "现金流量表"
       income_statement: "利润表"
       insider_transactions: "内部人交易"
+  akshare:
+    kline:
+      market_summary: "{ticker} 最新收盘价：{close:.2f}，两日涨跌幅：{pct_change:.2f}%"
+    news:
+      news_summary: "{ticker} 近期新闻：{headlines}，共 {count} 条"
+      global_news_summary: "全球宏观新闻（{start_date} 至 {end_date}）：{headlines}，共 {count} 条"
+    fundamentals:
+      fundamentals_summary: "{ticker} 市盈率：{pe}，市值：{market_cap}，利润率：{profit_margin}"
+      balance_sheet: "资产负债表"
+      cash_flow: "现金流量表"
+      income_statement: "利润表"
+      insider_transactions: "内部人交易"
+    index:
+      index_summary: "{index_name} 最新收盘：{close}，涨跌幅：{pct_change:.2f}%"    
